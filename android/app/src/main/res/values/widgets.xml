@@ -1,0 +1,6 @@
+<resources>
+    <string name="shelf_widget_name">Walkmen • Prateleira de fitas</string>
+    <string name="shelf_widget_description">Escolha suas fitas lado a lado na tela inicial.</string>
+    <string name="walkman_widget_name">Walkmen • Aparelho</string>
+    <string name="walkman_widget_description">Toque no Walkman para ouvir e use os controles de reprodução.</string>
+</resources>
