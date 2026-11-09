@@ -55,28 +55,6 @@ Projeto Flutter Android em `C:\03 - Dados Gabriel\projetos\Projetos-gerais\wlak`
 APK instalável: `Walkmen.apk`, na mesma pasta do código.
 Flutter, Java e Android SDK permanecem em `C:\Walkman-tools`.
 
-## Celular virtual no PC
-
-Abra `Abrir celular.cmd` para iniciar o emulador Android 11 e instalar/abrir o APK atual. Use o mouse para tocar e arrastar. O dispositivo Walkmen_Celular e seus dados ficam em `C:\Walkman-tools\avd`; o emulador e a imagem Android ficam no SDK fora dos projetos. Feche a janela do emulador quando terminar.
-
-A instalação e a abertura da tela Biblioteca foram verificadas no emulador em 09/11/2026. Ele tem armazenamento próprio, separado das músicas do PC e de um celular físico. Essa verificação não cobre reprodução, permissões, widgets e notificações em aparelhos reais.
-
-## Pedidos incorporados
-
-- Cabeçalho com a logo enviada, nome Walkmen, ícone de pesquisa e ícone de atualizar.
-- Biblioteca abre por pastas. Os botões antigos Escolher pasta / Todo o aparelho / Permissões e a inscrição Local Offline foram retirados do topo.
-- Na primeira abertura, uma ação Escolher pasta de músicas abre o gerenciador Android. A autorização e o caminho ficam memorizados. Ajustes permite trocar a pasta se necessário.
-- O ícone de nova pasta cria subpastas reais dentro da pasta de músicas autorizada. Em instalações antigas com acesso apenas de leitura, reautorize a pasta em Ajustes para permitir criação.
-- Capas incorporadas ao áudio são extraídas pelo Android. Arquivos sem capa usam um ícone de álbum.
-- Tocar em uma música inicia áudio real. Toque longo mostra sua localização. O player tem pausa, próximo/anterior, progresso, volume, repetição e aleatório, com fila contínua, serviço em segundo plano e controles de mídia.
-- O coração salva favoritas; outro coração junto ao título da biblioteca abre a lista. As favoritas e os metadados são persistidos.
-- O menu de uma pasta tem Criar fita; dentro da pasta há também um botão. A fita referencia os áudios originais, sem copiá-los.
-- A aba Fitas mostra uma estante de caixas, com acesso à fita, edição, exclusão e reprodução. O editor permite nome, descrição, cores, aparência transparente, imagem de capa e ordem das músicas.
-- A aba Figurinhas importa imagens da galeria e recorta retângulos de proporção livre, elipses/círculos, estrelas, corações, triângulos e contornos desenhados com o dedo. Os recortes são PNG com transparência.
-- No editor da fita, aplique figurinhas na fita ou na caixa, arraste, redimensione, gire e salve. As mesmas personalizações aparecem na coleção e no 3D.
-- No detalhe de uma fita, alterne Fita/Caixa e ative 3D. Arraste para girar em todos os lados, use dois dedos para ampliar e o controle Abrir caixa para movimentar a tampa. A geometria tem espessura, faces com textura, perspectiva e tampa articulada; não depende de vídeos ou acesso à internet.
-- Na visualização 2D da fita, as bobinas acompanham o estado de reprodução. O player ampliado solicita orientação horizontal e restaura a vertical ao sair.
-
 ## Compilar
 
 ```powershell
