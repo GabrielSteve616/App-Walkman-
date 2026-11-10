@@ -67,12 +67,6 @@ class _TapesScreenState extends State<TapesScreen> {
                           style: Theme.of(context).textTheme.headlineSmall)),
                   Text(app.tapes.length.toString() + ' na estante')
                 ])),
-            if (app.tapes.isNotEmpty)
-              const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 0, 16, 10),
-                  child: Text(
-                      'Segure para olhar em 3D • arraste para organizar',
-                      style: TextStyle(fontSize: 11, color: Colors.white60))),
             Expanded(
                 child: app.tapes.isEmpty
                     ? const Center(
@@ -86,7 +80,8 @@ class _TapesScreenState extends State<TapesScreen> {
                         return ListView.builder(
                             key: _viewport,
                             controller: _scroll,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            padding: EdgeInsets.fromLTRB(12, 0, 12,
+                                MediaQuery.paddingOf(context).bottom),
                             itemCount: (app.tapes.length / columns).ceil(),
                             itemBuilder: (context, row) => Container(
                                 margin: const EdgeInsets.only(bottom: 24),
@@ -225,7 +220,7 @@ class TapeDetailScreen extends StatefulWidget {
 }
 
 class _TapeDetailScreenState extends State<TapeDetailScreen> {
-  bool _model = false, _case = false, _back = false;
+  bool _model = false, _case = false, _back = false, _catalogExpanded = false;
   Future<void> _delete(Tape tape) async {
     final yes = await showDialog<bool>(
         context: context,
@@ -302,13 +297,20 @@ class _TapeDetailScreenState extends State<TapeDetailScreen> {
                         selected: _model,
                         onSelected: (v) => setState(() => _model = v)),
                   ])),
-              SizedBox(
-                  height: (MediaQuery.sizeOf(context).height *
-                          (MediaQuery.orientationOf(context) ==
-                                  Orientation.landscape
-                              ? .20
-                              : .35))
-                      .clamp(60, 300),
+              AnimatedContainer(
+                  key: const ValueKey('tape-detail-preview'),
+                  duration: const Duration(milliseconds: 250),
+                  curve: Curves.easeOutCubic,
+                  height: ((MediaQuery.sizeOf(context).height *
+                                  (MediaQuery.orientationOf(context) == Orientation.landscape
+                                      ? .20
+                                      : .35))
+                              .clamp(60, 300) -
+                          (_catalogExpanded
+                              ? MediaQuery.sizeOf(context).height * .25
+                              : 0))
+                      .clamp(_model ? 180.0 : 72.0, 300.0)
+                      .toDouble(),
                   child: _model
                       ? TapeModelView(
                           tape: tape,
@@ -319,12 +321,7 @@ class _TapeDetailScreenState extends State<TapeDetailScreen> {
                               start: i, name: tape.name))
                       : Padding(
                           padding: const EdgeInsets.all(20),
-                          child: Transform(
-                              alignment: Alignment.center,
-                              transform: Matrix4.identity()
-                                ..setEntry(3, 2, 0.001)
-                                ..rotateY(0)
-                                ..rotateZ(0),
+                          child: Center(
                               child: ListenableBuilder(
                                   listenable: app.playback,
                                   builder: (_, child) => AnimatedTapeArtwork(
@@ -332,11 +329,8 @@ class _TapeDetailScreenState extends State<TapeDetailScreen> {
                                       assets: app.stickers,
                                       caseView: _case,
                                       backView: _back,
-                                      onTrackTap: (i) => app.playback
-                                          .playTracks(tape.tracks,
-                                              start: i, name: tape.name),
-                                      playing: app.playback.playing &&
-                                          app.playback.tapeName == tape.name))))),
+                                      onTrackTap: (i) => app.playback.playTracks(tape.tracks, start: i, name: tape.name),
+                                      playing: app.playback.playing && app.playback.tapeName == tape.name))))),
               FilledButton.icon(
                   onPressed: tape.tracks.isEmpty
                       ? null
@@ -350,10 +344,24 @@ class _TapeDetailScreenState extends State<TapeDetailScreen> {
                                     builder: (_) => PlayerScreen(app: app)));
                         },
                   icon: const Icon(Icons.play_arrow),
-                  label: const Text('Tocar fita')),
+                  label: const Text('Tocar')),
               Expanded(
-                  child: TapeCatalog(
-                      app: app, tape: tape, limit: _case && _back ? 10 : null)),
+                  child: NotificationListener<ScrollNotification>(
+                      onNotification: (n) {
+                        if (!_catalogExpanded &&
+                            n is OverscrollNotification &&
+                            n.overscroll < 0)
+                          setState(() => _catalogExpanded = true);
+                        return false;
+                      },
+                      child: TapeCatalog(
+                          app: app,
+                          tape: tape,
+                          expanded: _catalogExpanded,
+                          onExpandedChanged: (value) {
+                            if (value != _catalogExpanded)
+                              setState(() => _catalogExpanded = value);
+                          }))),
             ]));
       });
 }

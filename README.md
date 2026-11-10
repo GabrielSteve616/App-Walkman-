@@ -1,4 +1,31 @@
-# Walkmen — 0.8.3
+# Walkmen — 0.9.2
+
+Leia [minha ideia para o Walkmen](docs/IDEIA_DO_PROJETO.md): a concepção do aplicativo em primeira pessoa, a experiência que quero criar, o que já foi desenvolvido e as possibilidades futuras.
+
+## Atualização 0.9.2
+
+- Trechos > Marcar volta ao player. O botão − registra o início na posição atual do áudio e + registra o fim. Salvar guarda esse intervalo específico; finalizar sai da marcação.
+- Salvar fica desabilitado até haver início e fim válidos. Também é possível selecionar o intervalo pelas alças da própria barra.
+- Removidos o emulador, sua imagem Android, o dispositivo virtual, os arquivos de teste e os atalhos de simulação. Flutter e SDK de compilação foram mantidos.
+
+## Atualização 0.9.1
+
+- Barra inferior com aproximadamente 50% de opacidade e desfoque do conteúdo ao fundo. As listas mantêm espaço para alcançar os últimos itens.
+- Trechos > Marcar fecha a lista e ativa a seleção na própria barra do player. Os ícones −/+ ajustam o início ou fim selecionado em passos de um segundo; salvar mantém o modo de marcação e finalizar volta ao player normal. O nome do trecho é gerado automaticamente.
+- Removidas as barras e explicações das animações. A abertura continua por gesto, com modos Girar/Abrir no 3D.
+- Ao puxar o catálogo, a prévia da fita diminui e libera até cerca de um quarto da altura da tela para a lista. A seta recolhe o catálogo novamente.
+- Cabeçalhos e instruções reduzidos. Sem envio ao GitHub.
+
+## Atualização 0.9.0
+
+- Player vertical como padrão, mantendo a fita animada com a imagem da música na janela central. O modo deitado continua disponível no menu.
+- Catálogo acessível pelo player para escolher qualquer faixa; trocar dentro da mesma fila não recarrega todos os arquivos. Toques feitos durante carregamento preservam a última escolha.
+- Trechos favoritos com nome, início e fim: Player > Trechos > Marcar. São salvos no aparelho, podem ser reproduzidos e excluídos; a reprodução pausa ao chegar ao fim marcado.
+- Personalização com dez cores principais por toque, sem códigos ou controles técnicos.
+- Botões arredondados, navegação e ícones renovados, mantendo as cores e a identidade Walkmen.
+- Case 3D com os modos Girar e Abrir com o dedo; arrastar para cima abre e para baixo fecha. O controle deslizante continua disponível. A animação de retirada também pode ser controlada pelo dedo e pela barra.
+- Serviço de áudio configurado para continuar em primeiro plano, inclusive na pausa, e permanecer ao remover a atividade dos recentes. Fora do app, a notificação usa o painel nativo de mídia, sem redesenhar bitmaps continuamente. Parada forçada pelo sistema/usuário encerra a reprodução.
+- APK gerado em modo release otimizado, com a mesma chave local utilizada nas instalações anteriores. Não foi enviada nenhuma alteração ao GitHub.
 
 ## Atualização 0.8.3
 
@@ -49,7 +76,7 @@
 - Dois widgets Android: prateleira para abrir fitas e Walkman para controlar a reprodução. Adicione em Ajustes ou pelo seletor de widgets do Android.
 - Notificação de mídia com arte, controles e progresso. A visualização expandida personalizada usa uma fita com bobinas atualizadas durante a reprodução e paradas na pausa.
 
-A aparência da notificação depende da versão do Android e do fabricante: o sistema pode substituir o layout personalizado pelo painel padrão de mídia. Não há celular ou emulador conectado neste ambiente; reprodução real, permissões, widgets e notificação devem ser conferidos no aparelho. O APK é uma compilação debug assinada, para instalação local.
+A aparência da notificação depende da versão do Android e do fabricante: o sistema pode substituir o layout personalizado pelo painel padrão de mídia. A abertura da Biblioteca foi verificada no emulador; reprodução real, permissões, widgets e notificação ainda devem ser conferidos em um celular físico. O APK atual é uma compilação release otimizada, assinada com a chave local de desenvolvimento para manter compatibilidade com as instalações anteriores.
 
 Projeto Flutter Android em `C:\03 - Dados Gabriel\projetos\Projetos-gerais\wlak`.
 APK instalável: `Walkmen.apk`, na mesma pasta do código.
@@ -61,7 +88,7 @@ Flutter, Java e Android SDK permanecem em `C:\Walkman-tools`.
 .\build-apk.ps1
 ```
 
-O script resolve dependências, executa análise e testes, compila o APK de depuração e copia para Walkmen.apk. O CMake do SDK está configurado em android/local.properties. As saídas intermediárias ficam em build e dist.
+O script resolve dependências, executa análise e testes, compila o APK otimizado e copia para Walkmen.apk. O CMake do SDK está configurado em android/local.properties. As saídas intermediárias ficam em build e podem ser removidas após a compilação; a próxima compilação as recria. O script não cria uma segunda cópia em dist.
 
 ## Validação
 
@@ -75,5 +102,5 @@ As imagens dos áudios só aparecem quando existe arte incorporada. Ao criar sub
 
 lib/screens, lib/models, lib/services, lib/widgets, lib/animations, assets, test e android. Os áudios são referências content:// com autorização persistente. Coleção, favoritas, figurinhas e imagens de capa ficam no armazenamento privado do aplicativo; as autorizações anteriores são mantidas para que fitas já salvas continuem usando seus arquivos após trocar a pasta principal.
 
-Validação final em 09/11/2026: flutter analyze sem problemas, 30 testes passaram, Android lintDebug aprovado e APK 0.8.3+14 compilado com assinatura verificada. Nome Walkmen e versão conferidos no APK. Nenhum celular conectado para teste de som, permissões, widgets e notificação reais.
+Validação da versão 0.9.2+17 em 10/11/2026: análise sem problemas, 33 testes aprovados e APK release com assinatura verificada. A marcação foi testada registrando 0:37 pelo botão − e 0:52 pelo botão +, salvando e reproduzindo exatamente esse intervalo. Os testes de áudio em segundo plano da versão 0.9.0 estão em [validação e limites](docs/VALIDACAO_0.9.0.md). O emulador foi removido a pedido.
 

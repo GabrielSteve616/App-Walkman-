@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/tape.dart';
+import '../models/audio_moment.dart';
 import '../services/app_state.dart';
 import '../widgets/tape_artwork.dart';
 import '../widgets/track_artwork.dart';
+import '../widgets/queue_sheet.dart';
+import '../widgets/audio_moments.dart';
 
 String clockTime(Duration d) =>
     '${d.inMinutes}:${d.inSeconds.remainder(60).toString().padLeft(2, '0')}';
@@ -33,10 +36,10 @@ class NowPlayingTape extends StatelessWidget {
                           assets: app.stickers,
                           playing: p.playing)),
                   Positioned(
-                      left: c.maxWidth * .422,
-                      top: c.maxHeight * .494,
-                      width: c.maxWidth * .156,
-                      height: c.maxHeight * .163,
+                      left: c.maxWidth * .43,
+                      top: c.maxHeight * .445,
+                      width: c.maxWidth * .14,
+                      height: c.maxHeight * .18,
                       child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: TrackArtwork(
@@ -101,7 +104,7 @@ class MiniPlayer extends StatelessWidget {
 
 class PlayerScreen extends StatefulWidget {
   const PlayerScreen(
-      {super.key, required this.app, this.initialVertical = false});
+      {super.key, required this.app, this.initialVertical = true});
   final AppState app;
   final bool initialVertical;
   @override
@@ -110,6 +113,89 @@ class PlayerScreen extends StatefulWidget {
 
 class _PlayerScreenState extends State<PlayerScreen> {
   late bool _vertical;
+  double? _dragPosition;
+  RangeValues? _markRange;
+  String? _markUri;
+  bool _markEnd = true,
+      _savingMoment = false,
+      _hasMarkStart = false,
+      _hasMarkEnd = false;
+  Future<void> _moments() async {
+    final begin = await showAudioMoments(context, widget.app);
+    if (!mounted || begin != true) return;
+    final p = widget.app.playback, total = p.duration.inMilliseconds.toDouble();
+    if (p.current == null || total < 1000) return;
+    final start =
+        p.position.inMilliseconds.toDouble().clamp(0, total - 1000).toDouble();
+    setState(() {
+      _markUri = p.current!.uri.toString();
+      _markEnd = true;
+      _hasMarkStart = false;
+      _hasMarkEnd = false;
+      _markRange = RangeValues(start, start);
+    });
+  }
+
+  void _markBoundary(bool end) {
+    final p = widget.app.playback, r = _markRange;
+    if (r == null || p.current?.uri.toString() != _markUri) return;
+    final now = p.position.inMilliseconds
+        .toDouble()
+        .clamp(0, p.duration.inMilliseconds.toDouble())
+        .toDouble();
+    if (end && (!_hasMarkStart || now - r.start < 1000)) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(!_hasMarkStart
+              ? 'Marque o início (−).'
+              : 'O fim deve vir depois do início.')));
+      return;
+    }
+    setState(() {
+      _markEnd = end;
+      if (end) {
+        _markRange = RangeValues(r.start, now);
+        _hasMarkEnd = true;
+      } else {
+        _markRange = RangeValues(now, now);
+        _hasMarkStart = true;
+        _hasMarkEnd = false;
+      }
+    });
+  }
+
+  Future<void> _saveMoment() async {
+    final r = _markRange, t = widget.app.playback.current;
+    if (r == null ||
+        t == null ||
+        t.uri.toString() != _markUri ||
+        _savingMoment ||
+        !_hasMarkStart ||
+        !_hasMarkEnd ||
+        r.end - r.start < 1000) return;
+    setState(() => _savingMoment = true);
+    try {
+      await widget.app.saveMoment(AudioMoment(
+          id: DateTime.now().microsecondsSinceEpoch.toString(),
+          name: t.title +
+              ' • ' +
+              clockTime(Duration(milliseconds: r.start.round())) +
+              '–' +
+              clockTime(Duration(milliseconds: r.end.round())),
+          track: t,
+          start: Duration(milliseconds: r.start.round()),
+          end: Duration(milliseconds: r.end.round())));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Salvo'), duration: Duration(seconds: 1)));
+    } catch (_) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Não foi possível salvar.')));
+    } finally {
+      if (mounted) setState(() => _savingMoment = false);
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -149,6 +235,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _controls(BuildContext context) {
     final app = widget.app, p = app.playback, t = p.current!;
     final total = p.duration.inMilliseconds.toDouble();
+    final marking = _markRange != null && _markUri == t.uri.toString();
     return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -177,20 +264,56 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ]),
           if (p.error != null)
             Text(p.error!, style: const TextStyle(color: Colors.orange)),
-          Slider(
-              value: p.position.inMilliseconds
-                  .toDouble()
-                  .clamp(0, total > 0 ? total : 1),
-              max: total > 0 ? total : 1,
-              onChanged: total <= 0
-                  ? null
-                  : (v) => p.seek(Duration(milliseconds: v.round()))),
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(clockTime(p.position),
-                style: const TextStyle(color: Colors.white60)),
-            Text(clockTime(p.duration),
-                style: const TextStyle(color: Colors.white60))
-          ]),
+          if (marking) ...[
+            RangeSlider(
+                values: _markRange!,
+                max: total > 0 ? total : 1,
+                onChanged: _savingMoment
+                    ? null
+                    : (v) => setState(() {
+                          if (v.end - v.start < 1000) return;
+                          _markEnd = v.end != _markRange!.end;
+                          _markRange = v;
+                          _hasMarkStart = true;
+                          _hasMarkEnd = true;
+                        })),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              TextButton(
+                  onPressed: () => setState(() => _markEnd = false),
+                  style: TextButton.styleFrom(
+                      foregroundColor:
+                          !_markEnd ? Colors.orangeAccent : Colors.white60),
+                  child: Text(clockTime(
+                      Duration(milliseconds: _markRange!.start.round())))),
+              TextButton(
+                  onPressed: () => setState(() => _markEnd = true),
+                  style: TextButton.styleFrom(
+                      foregroundColor:
+                          _markEnd ? Colors.orangeAccent : Colors.white60),
+                  child: Text(clockTime(
+                      Duration(milliseconds: _markRange!.end.round())))),
+            ]),
+          ] else ...[
+            Slider(
+                value: (_dragPosition ?? p.position.inMilliseconds.toDouble())
+                    .clamp(0, total > 0 ? total : 1),
+                max: total > 0 ? total : 1,
+                onChanged: total <= 0
+                    ? null
+                    : (v) => setState(() => _dragPosition = v),
+                onChangeEnd: total <= 0
+                    ? null
+                    : (v) {
+                        setState(() => _dragPosition = null);
+                        p.seek(Duration(milliseconds: v.round()));
+                      }),
+            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              Text(clockTime(p.position),
+                  style: const TextStyle(color: Colors.white60)),
+              Text(clockTime(p.duration),
+                  style: const TextStyle(color: Colors.white60))
+            ]),
+          ],
           const SizedBox(height: 10),
           Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
             IconButton(
@@ -220,6 +343,42 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 icon: Icon(
                     p.loop == LoopMode.one ? Icons.repeat_one : Icons.repeat)),
           ]),
+          if (marking)
+            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+              IconButton(
+                  tooltip: 'Marcar início',
+                  onPressed: _savingMoment ? null : () => _markBoundary(false),
+                  icon: const Icon(Icons.remove_rounded)),
+              IconButton(
+                  tooltip: 'Marcar fim',
+                  onPressed: _savingMoment ? null : () => _markBoundary(true),
+                  icon: const Icon(Icons.add_rounded)),
+              IconButton.filledTonal(
+                  tooltip: 'Salvar trecho',
+                  onPressed: _savingMoment || !_hasMarkStart || !_hasMarkEnd
+                      ? null
+                      : _saveMoment,
+                  icon: const Icon(Icons.bookmark_add_rounded)),
+              IconButton(
+                  tooltip: 'Finalizar',
+                  onPressed: _savingMoment
+                      ? null
+                      : () => setState(() => _markRange = null),
+                  icon: const Icon(Icons.done_rounded)),
+            ])
+          else
+            Row(children: [
+              Expanded(
+                  child: TextButton.icon(
+                      onPressed: () => showQueue(context, app),
+                      icon: const Icon(Icons.queue_music_rounded),
+                      label: const Text('Catálogo'))),
+              Expanded(
+                  child: TextButton.icon(
+                      onPressed: _moments,
+                      icon: const Icon(Icons.bookmarks_outlined),
+                      label: const Text('Trechos'))),
+            ]),
           Row(children: [
             IconButton(
                 tooltip: 'Parar',
@@ -258,7 +417,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
                         child: Text('Escolha uma música na biblioteca.'));
                   return LayoutBuilder(builder: (context, c) {
                     if (_vertical) {
-                      final coverSize = (c.maxWidth - 48).clamp(120.0, 380.0);
                       return SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                           child: Column(children: [
@@ -268,17 +426,31 @@ class _PlayerScreenState extends State<PlayerScreen> {
                                     letterSpacing: 2,
                                     color: Colors.white54)),
                             const SizedBox(height: 22),
-                            Container(
-                                decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(18),
-                                    boxShadow: const [
-                                      BoxShadow(
-                                          color: Colors.black45,
-                                          blurRadius: 30,
-                                          offset: Offset(0, 14))
-                                    ]),
-                                child:
-                                    TrackArtwork(uri: t.uri, size: coverSize)),
+                            Center(
+                                child: ConstrainedBox(
+                                    constraints:
+                                        const BoxConstraints(maxWidth: 440),
+                                    child: Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(24),
+                                            gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF35434A),
+                                                  Color(0xFF171D23)
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight),
+                                            border: Border.all(
+                                                color: Colors.white12),
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                  color: Colors.black45,
+                                                  blurRadius: 26,
+                                                  offset: Offset(0, 12))
+                                            ]),
+                                        child: NowPlayingTape(app: app)))),
                             const SizedBox(height: 28),
                             _controls(context),
                           ]));

@@ -47,6 +47,7 @@ class Tape3D extends StatefulWidget {
 class _Tape3DState extends State<Tape3D> {
   double _x = -.12, _y = 0, _zoom = 1, _startZoom = 1, _lid = 0;
   Offset _last = Offset.zero;
+  bool _openByTouch = false;
   @override
   void initState() {
     super.initState();
@@ -77,59 +78,70 @@ class _Tape3DState extends State<Tape3D> {
               if (hit != null) widget.onPlace?.call(hit);
             }
 
-            return GestureDetector(
-                onTapUp: (d) {
-                  if (widget.placingSticker) {
-                    place(d.localPosition);
-                  } else if (widget.caseView) {
-                    final hit = painter.surfaceAt(d.localPosition, size);
-                    if (hit != null && hit.back) {
-                      final index = caseTrackAt(hit.uv, widget.trackCount);
-                      if (index != null) widget.onTrackTap?.call(index);
-                    }
-                  }
-                },
-                onScaleStart: (d) {
-                  _last = d.localFocalPoint;
-                  _startZoom = _zoom;
-                },
-                onScaleUpdate: (d) {
-                  if (d.pointerCount == 1 && widget.placingSticker) {
-                    place(d.localFocalPoint);
-                    return;
-                  }
-                  setState(() {
-                    if (d.pointerCount == 1) {
-                      final delta = d.localFocalPoint - _last;
-                      _y += delta.dx * .013;
-                      _x -= delta.dy * .013;
-                    } else {
-                      _zoom = (_startZoom * d.scale).clamp(.45, 2.8);
-                    }
-                    _last = d.localFocalPoint;
-                  });
-                },
-                child: ClipRect(
-                    child: CustomPaint(
-                        painter: painter, child: const SizedBox.expand())));
+            return Semantics(
+                label: widget.caseView ? 'Case em 3D' : 'Fita em 3D',
+                value: widget.caseView
+                    ? ((_lid / 2.35 * 100).round().toString() + '%')
+                    : null,
+                child: GestureDetector(
+                    onTapUp: (d) {
+                      if (widget.placingSticker) {
+                        place(d.localPosition);
+                      } else if (widget.caseView) {
+                        final hit = painter.surfaceAt(d.localPosition, size);
+                        if (hit != null && hit.back) {
+                          final index = caseTrackAt(hit.uv, widget.trackCount);
+                          if (index != null) widget.onTrackTap?.call(index);
+                        }
+                      }
+                    },
+                    onScaleStart: (d) {
+                      _last = d.localFocalPoint;
+                      _startZoom = _zoom;
+                    },
+                    onScaleUpdate: (d) {
+                      if (d.pointerCount == 1 && widget.placingSticker) {
+                        place(d.localFocalPoint);
+                        return;
+                      }
+                      setState(() {
+                        if (d.pointerCount == 1 &&
+                            _openByTouch &&
+                            widget.caseView) {
+                          _lid =
+                              (_lid - (d.localFocalPoint.dy - _last.dy) * .018)
+                                  .clamp(0, 2.35);
+                        } else if (d.pointerCount == 1) {
+                          final delta = d.localFocalPoint - _last;
+                          _y += delta.dx * .013;
+                          _x -= delta.dy * .013;
+                        } else {
+                          _zoom = (_startZoom * d.scale).clamp(.45, 2.8);
+                        }
+                        _last = d.localFocalPoint;
+                      });
+                    },
+                    child: ClipRect(
+                        child: CustomPaint(
+                            painter: painter,
+                            child: const SizedBox.expand()))));
           })),
-          if (widget.caseView)
-            Row(children: [
-              const Text('Abrir caixa'),
-              Expanded(
-                  child: Slider(
-                      value: _lid,
-                      max: 2.35,
-                      onChanged: (v) => setState(() => _lid = v)))
+          if (widget.caseView && !widget.placingSticker)
+            Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
+              ChoiceChip(
+                  label: const Text('Girar'),
+                  selected: !_openByTouch,
+                  onSelected: (_) => setState(() => _openByTouch = false)),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                  label: const Text('Abrir'),
+                  selected: _openByTouch,
+                  onSelected: (_) => setState(() => _openByTouch = true)),
             ]),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Expanded(
-                child: Text(
-                    widget.placingSticker
-                        ? 'Toque ou arraste na superfície para colar.'
-                        : 'Arraste para girar • dois dedos para ampliar',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12))),
+            if (widget.placingSticker)
+              const Expanded(
+                  child: Text('Toque para colar', textAlign: TextAlign.center)),
             IconButton(
                 tooltip: 'Centralizar',
                 onPressed: () => setState(() {

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/local_track.dart';
 import '../models/tape.dart';
+import '../models/audio_moment.dart';
 import 'collection_store.dart';
 import 'playback.dart';
 
@@ -11,6 +12,7 @@ class AppState extends ChangeNotifier {
   final CollectionStore store;
   final Playback playback;
   List<Tape> tapes = [];
+  List<AudioMoment> moments = [];
   List<StickerAsset> stickers = [];
   Set<String> favorites = {};
   Map<String, LocalTrack> favoriteTracks = {};
@@ -23,6 +25,9 @@ class AppState extends ChangeNotifier {
       final data = await store.read();
       tapes = (data['tapes'] as List? ?? [])
           .map((t) => Tape.fromJson(Map<String, dynamic>.from(t)))
+          .toList();
+      moments = (data['moments'] as List? ?? [])
+          .map((m) => AudioMoment.fromJson(Map<String, dynamic>.from(m)))
           .toList();
       stickers = (data['stickers'] as List? ?? [])
           .map((s) => StickerAsset.fromJson(Map<String, dynamic>.from(s)))
@@ -42,13 +47,15 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> _save(List<Tape> nextTapes, List<StickerAsset> nextStickers,
-      {Set<String>? nextFavorites,
+      {List<AudioMoment>? nextMoments,
+      Set<String>? nextFavorites,
       Map<String, LocalTrack>? nextFavoriteTracks}) async {
     if (!loaded || storageError != null)
       throw StateError(
           'Armazenamento indisponível. Reabra o app antes de salvar.');
     await store.write({
       'tapes': nextTapes.map((t) => t.toJson()).toList(),
+      'moments': (nextMoments ?? moments).map((m) => m.toJson()).toList(),
       'stickers': nextStickers.map((s) => s.toJson()).toList(),
       'favorites': (nextFavorites ?? favorites).toList(),
       'favoriteTracks': (nextFavoriteTracks ?? favoriteTracks)
@@ -57,6 +64,7 @@ class AppState extends ChangeNotifier {
           .toList(),
     });
     tapes = nextTapes;
+    moments = nextMoments ?? moments;
     stickers = nextStickers;
     favorites = nextFavorites ?? favorites;
     favoriteTracks = nextFavoriteTracks ?? favoriteTracks;
@@ -90,6 +98,15 @@ class AppState extends ChangeNotifier {
         await _save(next, List.of(stickers));
       });
 
+  Future<void> saveMoment(AudioMoment m) => _change(() {
+        if (m.start < Duration.zero || m.end <= m.start)
+          throw ArgumentError('Trecho inválido');
+        return _save(List.of(tapes), List.of(stickers),
+            nextMoments: [...moments.where((x) => x.id != m.id), m]);
+      });
+  Future<void> deleteMoment(String id) =>
+      _change(() => _save(List.of(tapes), List.of(stickers),
+          nextMoments: moments.where((m) => m.id != id).toList()));
   Future<void> deleteTape(String id) => _change(
       () => _save(tapes.where((t) => t.id != id).toList(), List.of(stickers)));
   Future<void> toggleFavorite(LocalTrack track) => _change(() {

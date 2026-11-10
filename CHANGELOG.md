@@ -6,6 +6,28 @@ Não existem snapshots completos recuperados dessas versões, portanto elas
 não recebem tags nem commits retroativos. Datas dos commits representam a
 entrada real no controle de versão.
 
+## 0.9.2+17 — alterações locais
+
+- − marca o início atual e + marca o fim atual do áudio; salvar registra esse trecho específico.
+- Impede salvar antes de marcar os dois pontos; finalizar encerra a seleção.
+- Remove a instalação do celular virtual e seus atalhos, preservando as ferramentas de compilação.
+
+## 0.9.1+16 — alterações locais
+
+- Navegação inferior semitransparente.
+- Trechos marcados na barra principal, com ajustes −/+, salvar e finalizar.
+- Abertura por gesto, sem barras de animação.
+- Catálogo expansível para mostrar mais faixas; interface com menos textos.
+
+## 0.9.0+15 — alterações locais
+
+- Player vertical padrão com fita e arte, acesso ao catálogo completo e escolha de faixas sem recarregar a fila.
+- Trechos favoritos persistidos, com início/fim e reprodução do intervalo.
+- Paleta de dez cores e atualização dos controles e ícones.
+- Abertura da case por gesto e animação de retirada controlável.
+- Notificação nativa quando o app está em segundo plano; menos redesenhos e serviço mantido em primeiro plano.
+- Compilação release otimizada, preservando a chave de assinatura local. Sem publicação no GitHub.
+
 ## 0.8.3+14
 
 - Centraliza o conjunto da abertura da case e retirada da fita.

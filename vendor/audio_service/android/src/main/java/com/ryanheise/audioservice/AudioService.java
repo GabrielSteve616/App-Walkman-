@@ -57,6 +57,11 @@ public class AudioService extends MediaBrowserServiceCompat {
     public static MediaSessionCompat.Token activeSessionToken() {
         return instance == null ? null : instance.getSessionToken();
     }
+    public static volatile boolean uiVisible = false;
+    public static void refreshNotificationVisuals() {
+        final AudioService service = instance;
+        if (service != null) service.visualHandler.post(() -> service.updateNotification());
+    }
     private boolean visualTickRunning = false;
     private final Handler visualHandler = new Handler(Looper.getMainLooper());
     private final Runnable visualTick = new Runnable() {
@@ -64,8 +69,8 @@ public class AudioService extends MediaBrowserServiceCompat {
             if (!playing || !visualTickRunning) return;
             PowerManager power = (PowerManager)getSystemService(POWER_SERVICE);
             boolean visible = power != null && (Build.VERSION.SDK_INT >= 20 ? power.isInteractive() : power.isScreenOn());
-            if (visible && notificationCreated) updateNotification();
-            visualHandler.postDelayed(this, visible ? 1000 : 10000);
+            if (visible && uiVisible && notificationCreated) updateNotification();
+            visualHandler.postDelayed(this, visible && uiVisible ? 4000 : 15000);
         }
     };
     public static final String CONTENT_STYLE_SUPPORTED = "android.media.browse.CONTENT_STYLE_SUPPORTED";
@@ -547,7 +552,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         this.playing = playing;
         if (playing && !visualTickRunning) {
             visualTickRunning = true;
-            visualHandler.postDelayed(visualTick, 1000);
+            visualHandler.postDelayed(visualTick, 4000);
         } else if (!playing) {
             visualTickRunning = false;
             visualHandler.removeCallbacks(visualTick);
@@ -706,6 +711,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             ;
         }
         int iconId = getResourceId(config.androidNotificationIcon);
+        if (iconId == 0) iconId = getApplicationInfo().icon;
         notificationBuilder.setSmallIcon(iconId);
         return notificationBuilder;
     }

@@ -131,7 +131,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(TapeUnboxScreen), findsOneWidget);
-    expect(find.text('Abrindo a caixa e retirando sua fita…'), findsOneWidget);
+    expect(find.byType(Slider), findsNothing);
     await capture('abertura-061-inicio');
     await tester.pump(const Duration(milliseconds: 900));
     await capture('abertura-061-tampa-aberta');
@@ -139,12 +139,18 @@ void main() {
     await capture('abertura-061-retirada');
     await tester.pumpAndSettle();
     expect(find.byType(TapeCatalog), findsOneWidget);
-    expect(find.text('ENCARTE / CATÁLOGO'), findsOneWidget);
+    expect(find.text('CATÁLOGO'), findsOneWidget);
     final photos = tester
         .widgetList<TrackArtwork>(find.descendant(
             of: find.byType(TapeCatalog), matching: find.byType(TrackArtwork)))
         .toList();
     expect(photos.map((p) => p.uri), tape.tracks.map((t) => t.uri));
+    final detailPreview = find.byKey(const ValueKey('tape-detail-preview'));
+    final before = tester.getSize(detailPreview).height;
+    await tester.drag(find.byTooltip('Ampliar catálogo'), const Offset(0, 70));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(detailPreview).height, lessThan(before));
+    expect(find.byTooltip('Recolher catálogo'), findsOneWidget);
     await capture('encarte-v06');
     await tester.tap(find.text('Música 2'));
     await tester.pump();

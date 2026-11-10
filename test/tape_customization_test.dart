@@ -101,17 +101,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Cor das letras da fita'), 200,
         scrollable: find.byType(Scrollable).first);
-    await tester.tap(find.text('Cor das letras da fita'));
+    final palette = find.bySemanticsLabel('Cor das letras da fita: Azul');
+    await tester.ensureVisible(palette);
     await tester.pumpAndSettle();
-    final hex = find.byWidgetPredicate(
-        (w) => w is TextField && w.decoration?.labelText == 'Código da cor');
-    await tester.enterText(hex, '19AFA1');
+    await tester.tap(palette);
     await tester.pump();
-    await tester.tap(find.text('Aplicar cor'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text('Salvar'));
     await tester.pumpAndSettle();
-    expect(app.tapes.single.textColor, 0xFF19AFA1);
+    expect(app.tapes.single.textColor, 0xFF1768AD);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     app.dispose();

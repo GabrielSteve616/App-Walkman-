@@ -31,8 +31,8 @@ credenciais, chaves de assinatura e APKs locais são ignorados pelo Git.
 6. No GitHub, crie uma Release dessa tag e anexe `Walkmen.apk`, junto das
    notas da versão. Nas próximas atualizações, substitua o número do exemplo.
 
-O workflow Validar Walkmen executa análise e testes. Sua primeira execução
-no GitHub ainda precisa ser confirmada após o envio inicial.
+O workflow Validar Walkmen executa análise e testes. As primeiras execuções
+da branch `main` e da tag `v0.8.3` foram concluídas com sucesso no GitHub.
 
 ## Assinatura do APK
 
@@ -41,5 +41,5 @@ local existente fora do repositório para atualizar instalações já feitas.
 Uma compilação em outra máquina com outra chave pode exigir desinstalar a
 versão anterior. Chaves e senhas de assinatura não devem ser commitadas.
 
-O histórico local já contém o tag da primeira versão preservada. O upload
-da Release depende de autenticação com acesso de escrita ao repositório.
+A tag da primeira versão preservada e sua Release já estão publicadas.
+Novos envios dependem de autenticação com acesso de escrita ao repositório.

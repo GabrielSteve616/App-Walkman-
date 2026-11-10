@@ -95,6 +95,7 @@ void main() {
   });
   testWidgets('Malha 3D gira, amplia e abre a caixa sem erro de desenho',
       (tester) async {
+    final semantics = tester.ensureSemantics();
     final tape =
         Tape(id: 'test', name: 'ESTRADAS • VOL. 1', tracks: [track('1')]);
     final images = await tester.runAsync(() async => [
@@ -148,13 +149,26 @@ void main() {
                             color: Colors.blue,
                             caseView: true)))))));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(Slider), const Offset(120, 0));
+    await tester.tap(find.text('Abrir'));
+    final paint = find
+        .descendant(of: find.byType(Tape3D), matching: find.byType(CustomPaint))
+        .first;
+    await tester.drag(paint, const Offset(0, -80));
     await tester.pumpAndSettle();
+    final opened =
+        tester.getSemantics(find.bySemanticsLabel('Case em 3D')).value;
+    expect(opened, isNot('0%'));
+    expect(find.byType(Slider), findsNothing);
     await capture('caixa-3d-aberta');
+    await tester.drag(paint, const Offset(0, 55));
+    await tester.pumpAndSettle();
+    expect(tester.getSemantics(find.bySemanticsLabel('Case em 3D')).value,
+        isNot(opened));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     for (final image in images) {
       image.dispose();
     }
+    semantics.dispose();
   });
 }

@@ -17,6 +17,10 @@ import com.ryanheise.audioservice.MediaButtonReceiver
 import com.ryanheise.audioservice.R as AudioR
 
 object WalkmenNotification {
+    private var previousArt: Bitmap? = null
+    private var smallArt: Bitmap? = null
+    private var previousPhase = Float.NaN
+    private var tapeArt: Bitmap? = null
     private var phase=0f
     private var lastTime=SystemClock.elapsedRealtime()
     private var wasPlaying=false
@@ -28,6 +32,10 @@ object WalkmenNotification {
     fun decorate(service: AudioService, original: Notification): Notification {
         val token=service.sessionToken?:return original
         val controller=MediaControllerCompat(service,token)
+        if(!AudioService.uiVisible) {
+            WalkmanWidget.updateFromSession(service,controller,phase)
+            return original
+        }
         val metadata=controller.metadata
         val state=controller.playbackState
         val playing=state?.state==PlaybackStateCompat.STATE_PLAYING
@@ -40,9 +48,11 @@ object WalkmenNotification {
         val views=RemoteViews(service.packageName,R.layout.walkmen_notification)
         views.setTextViewText(R.id.notif_title,metadata?.description?.title?:"Walkmen")
         views.setTextViewText(R.id.notif_artist,metadata?.description?.subtitle?:"")
-        views.setImageViewBitmap(R.id.notif_tape,TapeGraphics.cassette(phase))
+        if(tapeArt==null || previousPhase!=phase) { tapeArt=TapeGraphics.cassette(phase);previousPhase=phase }
+        views.setImageViewBitmap(R.id.notif_tape,tapeArt)
         val art=metadata?.getBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART)
-        if(art!=null)views.setImageViewBitmap(R.id.notif_art,Bitmap.createScaledBitmap(art,96,96,true))
+        if(art!==previousArt) { previousArt=art;smallArt=art?.let { Bitmap.createScaledBitmap(it,96,96,true) } }
+        if(smallArt!=null)views.setImageViewBitmap(R.id.notif_art,smallArt)
         else views.setImageViewResource(R.id.notif_art,R.mipmap.ic_launcher)
         views.setTextViewText(R.id.notif_time,"${time(position)} / ${time(duration)}")
         views.setProgressBar(R.id.notif_progress,1000,if(duration>0)((position*1000/duration).coerceIn(0,1000)).toInt()else 0,false)

@@ -94,10 +94,10 @@ void main() {
     expect(find.byType(NowPlayingTape), findsOneWidget);
     await tester.tap(find.byTooltip('Visualização do player'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Player vertical • em pé'));
+    await tester.tap(find.text('Fita • deitado'));
     await tester.pumpAndSettle();
-    expect(find.byType(NowPlayingTape), findsNothing);
-    expect(find.text('Reproduzindo'), findsOneWidget);
+    expect(find.byType(NowPlayingTape), findsOneWidget);
+    expect(find.text('Modo fita'), findsOneWidget);
     expect(playback.calls, 1);
     expect(playback.queue.length, 2);
     await tester.pumpWidget(const SizedBox());

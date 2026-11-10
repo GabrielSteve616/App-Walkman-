@@ -197,35 +197,38 @@ class _TapeUnboxScreenState extends State<TapeUnboxScreen>
                         final visibleBottom = bottom * (1 - finish) +
                             (cassetteCenter + cassetteHalf) * finish;
                         final centerOffset = -(visibleTop + visibleBottom) / 2;
-                        return SizedBox.expand(
-                            child: Transform.translate(
-                                offset: Offset(0, centerOffset),
-                                child: Stack(
-                                    alignment: Alignment.center,
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      tray,
-                                      // Once opened, the lid sits behind the cassette being lifted out.
-                                      if (open > .95) lid,
-                                      cassette,
-                                      if (open <= .95) lid,
-                                      if (pull < .15)
-                                        Opacity(
-                                            opacity: (1 - open).clamp(0, 1),
-                                            child: Transform.translate(
-                                                offset: Offset(
-                                                    0, trayY + height * .47),
-                                                child: Container(
-                                                    width: width * .97,
-                                                    height: 4,
-                                                    color: const Color(
-                                                        0xFF9BAEB6)))),
-                                    ])));
+                        return GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onVerticalDragStart: (_) => _controller.stop(),
+                            onVerticalDragUpdate: (d) => _controller.value =
+                                (_controller.value -
+                                        d.delta.dy / (c.maxHeight * .55))
+                                    .clamp(0, 1),
+                            child: SizedBox.expand(
+                                child: Transform.translate(
+                                    offset: Offset(0, centerOffset),
+                                    child: Stack(
+                                        alignment: Alignment.center,
+                                        clipBehavior: Clip.none,
+                                        children: [
+                                          tray,
+                                          // Once opened, the lid sits behind the cassette being lifted out.
+                                          if (open > .95) lid,
+                                          cassette,
+                                          if (open <= .95) lid,
+                                          if (pull < .15)
+                                            Opacity(
+                                                opacity: (1 - open).clamp(0, 1),
+                                                child: Transform.translate(
+                                                    offset: Offset(0,
+                                                        trayY + height * .47),
+                                                    child: Container(
+                                                        width: width * .97,
+                                                        height: 4,
+                                                        color: const Color(
+                                                            0xFF9BAEB6)))),
+                                        ]))));
                       }))),
-          const Padding(
-              padding: EdgeInsets.all(24),
-              child: Text('Abrindo a caixa e retirando sua fita…',
-                  style: TextStyle(color: Colors.white60))),
         ])),
       );
 }

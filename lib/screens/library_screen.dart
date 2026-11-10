@@ -289,6 +289,8 @@ class LibraryScreenState extends State<LibraryScreen> {
                           message:
                               'Adicione músicas pelo gerenciador e toque no ícone de atualizar.');
                     return ListView.builder(
+                        padding: EdgeInsets.only(
+                            bottom: MediaQuery.paddingOf(context).bottom),
                         itemCount: folders.length,
                         itemBuilder: (context, i) {
                           final folder = folders[i],
@@ -361,6 +363,8 @@ class LibraryScreenState extends State<LibraryScreen> {
                           ])),
                     Expanded(
                         child: ListView.builder(
+                            padding: EdgeInsets.only(
+                                bottom: MediaQuery.paddingOf(context).bottom),
                             itemCount: tracks.length,
                             itemBuilder: (context, index) {
                               final track = tracks[index];

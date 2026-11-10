@@ -60,16 +60,12 @@ class StickersScreen extends StatelessWidget {
                       icon: const Icon(Icons.add_photo_alternate),
                       label: const Text('Criar')),
                 ])),
-            const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                    'Importe imagens e recorte em formatos ou desenhe seu próprio contorno. Depois aplique na fita e na capa da caixa.')),
             Expanded(
                 child: app.stickers.isEmpty
-                    ? const Center(
-                        child: Text('Sua coleção de figurinhas começa aqui.'))
+                    ? const Center(child: Text('Sem figurinhas'))
                     : GridView.builder(
-                        padding: const EdgeInsets.all(16),
+                        padding: EdgeInsets.fromLTRB(16, 16, 16,
+                            MediaQuery.paddingOf(context).bottom + 16),
                         gridDelegate:
                             const SliverGridDelegateWithMaxCrossAxisExtent(
                                 maxCrossAxisExtent: 190,

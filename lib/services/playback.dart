@@ -24,6 +24,15 @@ class Playback extends ChangeNotifier {
   LocalTrack? get current =>
       queue.isEmpty ? null : queue[index.clamp(0, queue.length - 1)];
   bool _disposed = false;
+  ({List<LocalTrack> tracks, int start, String? name})? _pendingPlay;
+  ({Duration start, Duration end})? _nextRange;
+  Duration? _rangeEnd;
+  Future<void> playRange(LocalTrack track, Duration start, Duration end) async {
+    if (busy || start < Duration.zero || end <= start) return;
+    _nextRange = (start: start, end: end);
+    await playTracks([track], name: track.title);
+  }
+
   void _changed() {
     if (!_disposed) notifyListeners();
   }
@@ -41,7 +50,13 @@ class Playback extends ChangeNotifier {
     await session.configure(const AudioSessionConfiguration.music());
     final player = _player = AudioPlayer(maxSkipsOnError: 5);
     _subscriptions.add(player.playerStateStream.listen((_) => _changed()));
-    _subscriptions.add(player.positionStream.listen((_) => _changed()));
+    _subscriptions.add(player.positionStream.listen((position) {
+      if (_rangeEnd != null && position >= _rangeEnd!) {
+        _rangeEnd = null;
+        unawaited(player.pause());
+      }
+      _changed();
+    }));
     _subscriptions.add(player.durationStream.listen((_) => _changed()));
     _subscriptions.add(player.currentIndexStream.listen((i) {
       if (i != null) index = i;
@@ -57,7 +72,29 @@ class Playback extends ChangeNotifier {
 
   Future<void> playTracks(List<LocalTrack> tracks,
       {int start = 0, String? name}) async {
-    if (tracks.isEmpty || busy) return;
+    if (tracks.isEmpty) return;
+    if (busy) {
+      _pendingPlay = (tracks: List.of(tracks), start: start, name: name);
+      return;
+    }
+    final range = _nextRange;
+    _nextRange = null;
+    _rangeEnd = null;
+    if (_player != null &&
+        name == tapeName &&
+        listEquals(tracks.map((t) => t.uri).toList(),
+            queue.map((t) => t.uri).toList()) &&
+        range == null) {
+      index = start.clamp(0, queue.length - 1);
+      await _action((p) async {
+        await p.seek(Duration.zero, index: index);
+        unawaited(p.play().catchError((Object e) {
+          error = 'Falha na reprodução.';
+          _changed();
+        }));
+      });
+      return;
+    }
     busy = true;
     error = null;
     queue = List.of(tracks);
@@ -81,7 +118,8 @@ class Playback extends ChangeNotifier {
                       queryParameters: {'source': t.uri.toString()}),
                   album: name ?? t.album,
                   duration: t.duration == Duration.zero ? null : t.duration)),
-      ], initialIndex: index);
+      ], initialIndex: index, initialPosition: range?.start ?? Duration.zero);
+      _rangeEnd = range?.end;
       unawaited(player.play().catchError((Object e) {
         error = 'Não foi possível reproduzir este arquivo.';
         _changed();
@@ -92,6 +130,10 @@ class Playback extends ChangeNotifier {
     } finally {
       busy = false;
       _changed();
+      final next = _pendingPlay;
+      _pendingPlay = null;
+      if (next != null && !_disposed)
+        unawaited(playTracks(next.tracks, start: next.start, name: next.name));
     }
   }
 
@@ -116,12 +158,14 @@ class Playback extends ChangeNotifier {
   }
 
   Future<void> next() async {
+    _rangeEnd = null;
     await _action((p) async {
       if (p.hasNext) await p.seekToNext();
     });
   }
 
   Future<void> previous() async {
+    _rangeEnd = null;
     await _action((p) async {
       if (p.hasPrevious) {
         await p.seekToPrevious();
@@ -142,8 +186,13 @@ class Playback extends ChangeNotifier {
     _changed();
   }
 
-  Future<void> seek(Duration time) => _action((p) => p.seek(time));
+  Future<void> seek(Duration time) {
+    _rangeEnd = null;
+    return _action((p) => p.seek(time));
+  }
+
   Future<void> stop() async {
+    _rangeEnd = null;
     await _action((p) => p.stop());
   }
 

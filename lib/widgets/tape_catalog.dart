@@ -5,10 +5,17 @@ import '../services/app_state.dart';
 
 class TapeCatalog extends StatelessWidget {
   const TapeCatalog(
-      {super.key, required this.app, required this.tape, this.limit});
+      {super.key,
+      required this.app,
+      required this.tape,
+      this.limit,
+      this.expanded = false,
+      this.onExpandedChanged});
   final AppState app;
   final Tape tape;
   final int? limit;
+  final bool expanded;
+  final ValueChanged<bool>? onExpandedChanged;
   @override
   Widget build(BuildContext context) {
     final count = limit == null
@@ -24,6 +31,23 @@ class TapeCatalog extends StatelessWidget {
                   color: Colors.black45, blurRadius: 12, offset: Offset(0, 3))
             ]),
         child: Column(children: [
+          if (onExpandedChanged != null)
+            Tooltip(
+                message: expanded ? 'Recolher catálogo' : 'Ampliar catálogo',
+                child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => onExpandedChanged!(!expanded),
+                    onVerticalDragUpdate: (d) {
+                      if (d.delta.dy.abs() > 2) onExpandedChanged!(true);
+                    },
+                    child: SizedBox(
+                        height: 30,
+                        width: double.infinity,
+                        child: Icon(
+                            expanded
+                                ? Icons.keyboard_arrow_down_rounded
+                                : Icons.keyboard_arrow_up_rounded,
+                            color: const Color(0xFF76513E))))),
           Container(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
               decoration: const BoxDecoration(
@@ -34,7 +58,7 @@ class TapeCatalog extends StatelessWidget {
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text('ENCARTE / CATÁLOGO',
+                      const Text('CATÁLOGO',
                           style: TextStyle(
                               color: Color(0xFF665847),
                               fontSize: 10,
@@ -49,7 +73,7 @@ class TapeCatalog extends StatelessWidget {
                               fontSize: 18,
                               fontWeight: FontWeight.w800))
                     ])),
-                Text('$count FAIXAS',
+                Text('$count',
                     style: const TextStyle(
                         color: Color(0xFF76513E),
                         fontSize: 11,
@@ -57,6 +81,7 @@ class TapeCatalog extends StatelessWidget {
               ])),
           Expanded(
               child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: count,
                   itemBuilder: (context, i) {
                     final track = tape.tracks[i];

@@ -17,16 +17,14 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Análise estática falhou.' }
     & $flutter test
     if ($LASTEXITCODE -ne 0) { throw 'Testes falharam.' }
-    & $flutter build apk --debug
+    & $flutter build apk --release
     if ($LASTEXITCODE -ne 0) { throw 'Compilação falhou.' }
     # Flutter rewrites these Windows paths without escaping the drive colon.
     $properties = Join-Path $PSScriptRoot 'android\local.properties'
     $propertiesText = [System.IO.File]::ReadAllText($properties)
     $propertiesText = $propertiesText -replace '=C:', '=C\:'
     [System.IO.File]::WriteAllText($properties, $propertiesText)
-    New-Item -ItemType Directory -Force -Path 'dist' | Out-Null
-    Copy-Item -LiteralPath 'build\app\outputs\flutter-apk\app-debug.apk' -Destination 'dist\walkman-debug.apk'
-    Copy-Item -LiteralPath 'dist\walkman-debug.apk' -Destination 'Walkmen.apk'
+    Copy-Item -LiteralPath 'build\app\outputs\flutter-apk\app-release.apk' -Destination 'Walkmen.apk'
     Get-FileHash -Algorithm SHA256 -LiteralPath 'Walkmen.apk'
 } finally {
     Pop-Location

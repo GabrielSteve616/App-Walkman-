@@ -21,6 +21,8 @@ import io.flutter.plugin.common.MethodChannel
 import java.util.concurrent.Executors
 
 class MainActivity : AudioServiceActivity() {
+    override fun onStart() { super.onStart(); com.ryanheise.audioservice.AudioService.uiVisible = true; com.ryanheise.audioservice.AudioService.refreshNotificationVisuals() }
+    override fun onStop() { com.ryanheise.audioservice.AudioService.uiVisible = false; com.ryanheise.audioservice.AudioService.refreshNotificationVisuals(); super.onStop() }
     private var companionChannel: MethodChannel? = null
     private var companionReady = false
     private var pendingAction: Map<String,String>? = null
