@@ -302,7 +302,9 @@ class TapePainter extends CustomPainter {
   }
 
   void _cassette(Canvas c) {
-    final base = Color(tape.color);
+    final base = tape.transparent
+        ? Color.lerp(Color(tape.color), const Color(0xFFD4F1FA), .68)!
+        : Color(tape.color);
     const shell = Rect.fromLTWH(14, 18, 572, 334);
     final body = RRect.fromRectAndRadius(shell, const Radius.circular(17));
     c.drawShadow(Path()..addRRect(body), Colors.black, 9, false);
@@ -313,9 +315,11 @@ class TapePainter extends CustomPainter {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color.lerp(base, Colors.white, .27)!,
-                base,
+                Color.lerp(base, Colors.white, .27)!
+                    .withValues(alpha: tape.transparent ? .35 : 1),
+                base.withValues(alpha: tape.transparent ? .17 : 1),
                 Color.lerp(base, Colors.black, .45)!
+                    .withValues(alpha: tape.transparent ? .45 : 1)
               ]).createShader(shell));
     c.drawRRect(
         body,
@@ -337,6 +341,46 @@ class TapePainter extends CustomPainter {
           ..color = Colors.black26
           ..style = PaintingStyle.stroke
           ..strokeWidth = 1);
+    if (tape.transparent) {
+      c.save();
+      c.clipRRect(body);
+      for (final x in [176.0, 424.0]) {
+        c.drawCircle(
+            Offset(x, 198), 92, Paint()..color = const Color(0xFF342822));
+        for (var r = 50.0; r < 91; r += 4)
+          c.drawCircle(
+              Offset(x, 198),
+              r,
+              Paint()
+                ..color = const Color(0xFF8C6E51)
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 1);
+      }
+      for (final x in [72.0, 528.0]) {
+        c.drawLine(
+            Offset(x, 58),
+            Offset(x, 302),
+            Paint()
+              ..color = Colors.white38
+              ..strokeWidth = 3);
+        c.drawCircle(
+            Offset(x, 300), 12, Paint()..color = const Color(0xFF4F5557));
+      }
+      c.drawLine(
+          const Offset(72, 300),
+          const Offset(528, 300),
+          Paint()
+            ..color = const Color(0xFF6B4B32)
+            ..strokeWidth = 3);
+      final shine = Path()
+        ..moveTo(26, 30)
+        ..lineTo(118, 30)
+        ..lineTo(400, 345)
+        ..lineTo(309, 345)
+        ..close();
+      c.drawPath(shine, Paint()..color = Colors.white.withValues(alpha: .17));
+      c.restore();
+    }
     // Paper label follows the recessed upper panel, leaving the head bridge exposed.
     final label = RRect.fromRectAndRadius(
         const Rect.fromLTWH(49, 43, 502, 218), const Radius.circular(12));
@@ -651,7 +695,13 @@ Future<ui.Image> renderTapeEdge(Tape tape, List<StickerAsset> assets, int edge,
   // Each edge has its own canvas so no face texture is stretched onto a wall.
   final canvas = Canvas(recorder);
   canvas.drawColor(
-      caseView ? Color(tape.shellColor) : Color(tape.color), BlendMode.srcOver);
+      caseView
+          ? Color(tape.shellColor)
+          : tape.transparent
+              ? Color.lerp(Color(tape.color), const Color(0xFFD7F2FA), .7)!
+                  .withValues(alpha: .26)
+              : Color(tape.color),
+      BlendMode.srcOver);
   for (final back in [false, true]) {
     canvas.save();
     if (edge == 0) {
@@ -688,6 +738,48 @@ Future<ui.Image> renderTapeEdge(Tape tape, List<StickerAsset> assets, int edge,
   }
   final picture = recorder.endRecording();
   final image = await picture.toImage(size.width.toInt(), size.height.toInt());
+  picture.dispose();
+  return image;
+}
+
+Future<ui.Image> renderCaseInterior(
+    Tape tape, List<StickerAsset> assets) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  canvas.drawColor(Color(tape.shellColor), BlendMode.srcOver);
+  canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          const Rect.fromLTWH(25, 22, 550, 345), const Radius.circular(5)),
+      Paint()..color = Color(tape.caseColor));
+  canvas.drawRect(
+      const Rect.fromLTWH(25, 22, 550, 24), Paint()..color = Color(tape.color));
+  final ink = Color(tape.caseColor).computeLuminance() > .35
+      ? const Color(0xFF262C30)
+      : const Color(0xFFF4ECD9);
+  final text = TextPainter(
+      text: TextSpan(
+          text: tape.name,
+          style: TextStyle(
+              color: ink,
+              fontSize: 23,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…')
+    ..layout(maxWidth: 490);
+  text.paint(canvas, const Offset(48, 315));
+  for (final y in [68.0, 290.0])
+    canvas.drawLine(
+        Offset(48, y),
+        Offset(552, y),
+        Paint()
+          ..color = ink.withValues(alpha: .18)
+          ..strokeWidth = 1);
+  canvas.drawRect(
+      const Rect.fromLTWH(25, 22, 15, 345), Paint()..color = Colors.white24);
+  final picture = recorder.endRecording(),
+      image = await picture.toImage(600, 390);
   picture.dispose();
   return image;
 }

@@ -304,9 +304,11 @@ class LibraryScreenState extends State<LibraryScreen> {
                                       .where((s) => s.isNotEmpty)
                                       .lastOrNull ??
                                   folder),
-                              subtitle: Text('$folder\n${list.length} músicas',
-                                  maxLines: 2),
-                              isThreeLine: true,
+                              subtitle:
+                                  Text('${list.length} músicas', maxLines: 2),
+                              tileColor: const Color(0xFF223038),
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 9),
                               onTap: () => setState(() {
                                     _folder = folder;
                                     _view = LibraryView.songs;

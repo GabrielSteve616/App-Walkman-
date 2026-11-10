@@ -1,4 +1,5 @@
 import 'track_artwork.dart';
+import 'catalog_colors.dart';
 import 'package:flutter/material.dart';
 import '../models/tape.dart';
 import '../services/app_state.dart';
@@ -18,13 +19,14 @@ class TapeCatalog extends StatelessWidget {
   final ValueChanged<bool>? onExpandedChanged;
   @override
   Widget build(BuildContext context) {
+    final colors = CatalogColors(tape);
     final count = limit == null
         ? tape.tracks.length
         : tape.tracks.length.clamp(0, limit!);
     return Container(
         margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         decoration: BoxDecoration(
-            color: const Color(0xFFE9DFC9),
+            color: colors.paper,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
             boxShadow: const [
               BoxShadow(
@@ -47,20 +49,20 @@ class TapeCatalog extends StatelessWidget {
                             expanded
                                 ? Icons.keyboard_arrow_down_rounded
                                 : Icons.keyboard_arrow_up_rounded,
-                            color: const Color(0xFF76513E))))),
+                            color: colors.muted)))),
           Container(
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                   border: Border(
-                      bottom: BorderSide(color: Color(0xFFB34C3C), width: 2))),
+                      bottom: BorderSide(color: colors.accent, width: 2))),
               child: Row(children: [
                 Expanded(
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                      const Text('CATÁLOGO',
+                      Text('CATÁLOGO',
                           style: TextStyle(
-                              color: Color(0xFF665847),
+                              color: colors.muted,
                               fontSize: 10,
                               letterSpacing: 2,
                               fontWeight: FontWeight.bold)),
@@ -68,14 +70,14 @@ class TapeCatalog extends StatelessWidget {
                       Text(tape.name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Color(0xFF282A2A),
+                          style: TextStyle(
+                              color: colors.ink,
                               fontSize: 18,
                               fontWeight: FontWeight.w800))
                     ])),
                 Text('$count',
-                    style: const TextStyle(
-                        color: Color(0xFF76513E),
+                    style: TextStyle(
+                        color: colors.muted,
                         fontSize: 11,
                         fontWeight: FontWeight.bold)),
               ])),
@@ -95,11 +97,10 @@ class TapeCatalog extends StatelessWidget {
                                     const BoxConstraints(minHeight: 62),
                                 margin:
                                     const EdgeInsets.symmetric(horizontal: 12),
-                                decoration: const BoxDecoration(
+                                decoration: BoxDecoration(
                                     border: Border(
                                         bottom: BorderSide(
-                                            color: Color(0xFFBCAF95),
-                                            width: .6))),
+                                            color: colors.line, width: .6))),
                                 child: Row(children: [
                                   Padding(
                                       padding: const EdgeInsets.only(right: 12),
@@ -119,9 +120,9 @@ class TapeCatalog extends StatelessWidget {
                                                     child: Text(
                                                         '${i + 1}'
                                                             .padLeft(2, '0'),
-                                                        style: const TextStyle(
-                                                            color: Color(
-                                                                0xFF9B4538),
+                                                        style: TextStyle(
+                                                            color:
+                                                                colors.accent,
                                                             fontSize: 11,
                                                             fontWeight:
                                                                 FontWeight.w800,
@@ -132,9 +133,8 @@ class TapeCatalog extends StatelessWidget {
                                                     maxLines: 2,
                                                     overflow:
                                                         TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                        color:
-                                                            Color(0xFF282B2A),
+                                                    style: TextStyle(
+                                                        color: colors.ink,
                                                         fontSize: 14,
                                                         fontWeight:
                                                             FontWeight.w700)),
@@ -143,9 +143,8 @@ class TapeCatalog extends StatelessWidget {
                                                     maxLines: 1,
                                                     overflow:
                                                         TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                        color:
-                                                            Color(0xFF746A5B),
+                                                    style: TextStyle(
+                                                        color: colors.muted,
                                                         fontSize: 11))
                                               ]))),
                                   IconButton(
@@ -156,7 +155,7 @@ class TapeCatalog extends StatelessWidget {
                                               ? Icons.favorite
                                               : Icons.favorite_border,
                                           size: 19,
-                                          color: const Color(0xFFA14C3C)),
+                                          color: colors.accent),
                                       onPressed: () async {
                                         try {
                                           await app.toggleFavorite(track);

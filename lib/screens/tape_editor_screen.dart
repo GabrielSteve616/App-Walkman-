@@ -295,11 +295,26 @@ class _TapeEditorScreenState extends State<TapeEditorScreen> {
                 'A foto fica no retângulo do rótulo, atrás do nome. Escolha Frente ou Verso na prévia.',
                 style: TextStyle(fontSize: 12, color: Colors.white60)),
           ],
-          if (!_case)
-            SwitchListTile(
-                title: const Text('Fita transparente'),
-                value: _draft.transparent,
-                onChanged: (v) => setState(() => _draft.transparent = v)),
+          if (!_case) ...[
+            const SizedBox(height: 10),
+            SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                      value: false,
+                      icon: Icon(Icons.album_rounded),
+                      label: Text('Sólida')),
+                  ButtonSegment(
+                      value: true,
+                      icon: Icon(Icons.diamond_outlined),
+                      label: Text('Cristalina')),
+                ],
+                selected: {
+                  _draft.transparent
+                },
+                onSelectionChanged: (v) =>
+                    setState(() => _draft.transparent = v.first)),
+            const SizedBox(height: 10),
+          ],
           if (_case)
             Wrap(spacing: 8, children: [
               TextButton.icon(

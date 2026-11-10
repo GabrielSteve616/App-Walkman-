@@ -25,8 +25,26 @@ class Playback extends ChangeNotifier {
       queue.isEmpty ? null : queue[index.clamp(0, queue.length - 1)];
   bool _disposed = false;
   ({List<LocalTrack> tracks, int start, String? name})? _pendingPlay;
-  ({Duration start, Duration end})? _nextRange;
+  ({Duration start, Duration? end})? _nextRange;
   Duration? _rangeEnd;
+  Future<void> playFrom(LocalTrack track, Duration start) async {
+    if (busy || start < Duration.zero) return;
+    _rangeEnd = null;
+    final target = queue.indexWhere((t) => t.uri == track.uri);
+    if (_player != null && target >= 0) {
+      await _action((p) async {
+        await p.seek(start, index: target);
+        unawaited(p.play().catchError((Object e) {
+          error = 'Falha na reprodução.';
+          _changed();
+        }));
+      });
+    } else {
+      _nextRange = (start: start, end: null);
+      await playTracks([track], name: track.album);
+    }
+  }
+
   Future<void> playRange(LocalTrack track, Duration start, Duration end) async {
     if (busy || start < Duration.zero || end <= start) return;
     _nextRange = (start: start, end: end);

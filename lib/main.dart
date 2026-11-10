@@ -28,15 +28,37 @@ class WalkmanApp extends StatelessWidget {
       seedColor: const Color(0xFFFF8A32),
       brightness: Brightness.dark,
       primary: const Color(0xFFFF8A32),
-      surface: const Color(0xFF202123),
+      surface: const Color(0xFF20272B),
     );
     return MaterialApp(
       title: 'Walkmen',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: scheme,
-        scaffoldBackgroundColor: const Color(0xFF141516),
+        scaffoldBackgroundColor: const Color(0xFF10171B),
         useMaterial3: true,
+        textTheme: const TextTheme(
+          headlineSmall: TextStyle(
+              fontSize: 27, fontWeight: FontWeight.w800, letterSpacing: -.8),
+          titleLarge: TextStyle(
+              fontSize: 23, fontWeight: FontWeight.w800, letterSpacing: -.5),
+          titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+          bodyMedium: TextStyle(fontSize: 14, height: 1.35),
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+            backgroundColor: Color(0xFF161F24),
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(28)))),
+        dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF1D282E)),
+        dividerTheme:
+            const DividerThemeData(color: Color(0xFF334149), thickness: .7),
+        chipTheme: ChipThemeData(
+            side: const BorderSide(color: Color(0xFF3A484E)),
+            backgroundColor: const Color(0xFF1D282E),
+            selectedColor: const Color(0xFF644028),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14))),
         appBarTheme: const AppBarTheme(
             centerTitle: false,
             backgroundColor: Color(0xFF111418),
@@ -66,7 +88,11 @@ class WalkmanApp extends StatelessWidget {
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14))),
         inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
+          border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+              borderSide: BorderSide.none),
+          fillColor: Color(0xFF263239),
+          contentPadding: EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           filled: true,
         ),
       ),

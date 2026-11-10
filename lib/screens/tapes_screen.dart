@@ -65,7 +65,14 @@ class _TapesScreenState extends State<TapesScreen> {
                   Expanded(
                       child: Text('Suas fitas',
                           style: Theme.of(context).textTheme.headlineSmall)),
-                  Text(app.tapes.length.toString() + ' na estante')
+                  Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 13, vertical: 7),
+                      decoration: BoxDecoration(
+                          color: const Color(0xFF33434A),
+                          borderRadius: BorderRadius.circular(20)),
+                      child: Text(app.tapes.length.toString(),
+                          style: const TextStyle(fontWeight: FontWeight.w700)))
                 ])),
             Expanded(
                 child: app.tapes.isEmpty
@@ -91,8 +98,8 @@ class _TapesScreenState extends State<TapesScreen> {
                                         begin: Alignment.topCenter,
                                         end: Alignment.bottomCenter,
                                         colors: [
-                                          Color(0xFF13191D),
-                                          Color(0xFF34312C)
+                                          Color(0xFF19282F),
+                                          Color(0xFF423A30)
                                         ]),
                                     border: Border(
                                         bottom: BorderSide(

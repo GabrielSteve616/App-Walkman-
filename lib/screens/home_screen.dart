@@ -134,60 +134,76 @@ class _HomeScreenState extends State<HomeScreen> {
                       _libraryAction(() => _libraryKey.currentState?.refresh()),
                   icon: const Icon(Icons.refresh)),
             ]),
-        body: SafeArea(
-            bottom: false,
-            child: Column(children: [
-              ListenableBuilder(
-                  listenable: _app,
-                  builder: (_, child) => _app.storageError == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(_app.storageError!,
-                              style: const TextStyle(color: Colors.orange)))),
-              Expanded(
-                  child: IndexedStack(index: _selected, children: [
-                LibraryScreen(
-                    key: _libraryKey,
-                    library: const AndroidMusicLibrary(),
-                    app: _app),
-                TapesScreen(app: _app),
-                StickersScreen(app: _app),
-                ListView(
-                    padding: EdgeInsets.fromLTRB(
-                        16, 16, 16, MediaQuery.paddingOf(context).bottom + 16),
-                    children: [
-                      Text('Ajustes',
-                          style: Theme.of(context).textTheme.headlineSmall),
-                      ListTile(
-                          leading: const Icon(Icons.shelves),
-                          title: const Text('Adicionar widget de prateleira'),
-                          subtitle: const Text(
-                              'Duas fitas lado a lado, com nomes e navegação.'),
-                          onTap: () => _pinWidget('shelf')),
-                      ListTile(
-                          leading: const Icon(Icons.radio),
-                          title: const Text('Adicionar widget Walkman'),
-                          subtitle: const Text(
-                              'Toque no aparelho para ouvir e controle a reprodução.'),
-                          onTap: () => _pinWidget('walkman')),
-                      ListTile(
-                          leading: const Icon(Icons.folder_open),
-                          title: const Text('Alterar pasta de músicas'),
-                          subtitle: const Text(
-                              'A pasta escolhida fica guardada no aplicativo.'),
-                          onTap: () async {
-                            await _libraryKey.currentState?.chooseFolder();
-                            if (mounted) setState(() => _selected = 0);
-                          }),
-                      const ListTile(
-                          leading: Icon(Icons.info_outline),
-                          title: Text('Walkmen 0.9.2'),
-                          subtitle: Text(
-                              'Músicas locais, favoritas, fitas, figurinhas e visualização 2D e 3D.')),
-                    ]),
+        body: DecoratedBox(
+          decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                Color(0xFF213138),
+                Color(0xFF10171B),
+                Color(0xFF171C21)
+              ],
+                  stops: [
+                0,
+                .5,
+                1
               ])),
-            ])),
+          child: SafeArea(
+              bottom: false,
+              child: Column(children: [
+                ListenableBuilder(
+                    listenable: _app,
+                    builder: (_, child) => _app.storageError == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(_app.storageError!,
+                                style: const TextStyle(color: Colors.orange)))),
+                Expanded(
+                    child: IndexedStack(index: _selected, children: [
+                  LibraryScreen(
+                      key: _libraryKey,
+                      library: const AndroidMusicLibrary(),
+                      app: _app),
+                  TapesScreen(app: _app),
+                  StickersScreen(app: _app),
+                  ListView(
+                      padding: EdgeInsets.fromLTRB(16, 16, 16,
+                          MediaQuery.paddingOf(context).bottom + 16),
+                      children: [
+                        Text('Ajustes',
+                            style: Theme.of(context).textTheme.headlineSmall),
+                        ListTile(
+                            leading: const Icon(Icons.shelves),
+                            title: const Text('Adicionar widget de prateleira'),
+                            subtitle: const Text(
+                                'Duas fitas lado a lado, com nomes e navegação.'),
+                            onTap: () => _pinWidget('shelf')),
+                        ListTile(
+                            leading: const Icon(Icons.radio),
+                            title: const Text('Adicionar widget Walkman'),
+                            subtitle: const Text(
+                                'Toque no aparelho para ouvir e controle a reprodução.'),
+                            onTap: () => _pinWidget('walkman')),
+                        ListTile(
+                            leading: const Icon(Icons.folder_open),
+                            title: const Text('Alterar pasta de músicas'),
+                            subtitle: const Text(
+                                'A pasta escolhida fica guardada no aplicativo.'),
+                            onTap: () async {
+                              await _libraryKey.currentState?.chooseFolder();
+                              if (mounted) setState(() => _selected = 0);
+                            }),
+                        const ListTile(
+                            leading: Icon(Icons.info_outline),
+                            title: Text('Walkmen 0.10.0'),
+                            subtitle: Text(
+                                'Músicas locais, favoritas, fitas, figurinhas e visualização 2D e 3D.')),
+                      ]),
+                ])),
+              ])),
+        ),
         bottomNavigationBar: Column(mainAxisSize: MainAxisSize.min, children: [
           MiniPlayer(app: _app),
           ClipRect(

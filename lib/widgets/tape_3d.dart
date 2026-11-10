@@ -20,6 +20,7 @@ class Tape3D extends StatefulWidget {
       required this.cover,
       required this.color,
       this.shellColor = const Color(0xFF8E9DA5),
+      this.transparent = false,
       this.caseBack,
       this.tapeBack,
       this.interior,
@@ -36,6 +37,7 @@ class Tape3D extends StatefulWidget {
   final ui.Image? caseBack, tapeBack, interior;
   final List<ui.Image> tapeEdges, caseEdges;
   final Color color, shellColor;
+  final bool transparent;
   final bool caseView, backView, placingSticker, previewOnly;
   final ValueChanged<SurfaceHit>? onPlace;
   final ValueChanged<int>? onTrackTap;
@@ -189,22 +191,28 @@ class _ModelPainter extends CustomPainter {
       {ui.Image? front,
       ui.Image? back,
       double z = 0,
+      double dx = 0,
+      double dy = 0,
+      double? hingeHeight,
       List<ui.Image> edges = const [],
       bool hinged = false,
       bool? frontSurface,
       bool? backSurface,
       double radius = .06}) {
     _V point(double x, double y, double zz) {
-      var p = _V(x, y, zz + z);
+      var p = _V(x + dx, y + dy, zz + z);
       if (hinged) {
-        final py = p.y + h, pz = p.z - z;
-        p = _V(p.x, py * math.cos(lid) - pz * math.sin(lid) - h,
+        final pivot = hingeHeight ?? h;
+        final py = p.y + pivot, pz = p.z - z;
+        p = _V(p.x, py * math.cos(lid) - pz * math.sin(lid) - pivot,
             py * math.sin(lid) + pz * math.cos(lid) + z);
       }
       return p.rotate(rx, ry);
     }
 
-    final r = radius;
+    // Tiny supports need a smaller bevel than the main shell. An oversized
+    // bevel folds the polygon over itself and creates stray triangles.
+    final r = radius.clamp(0.0, math.min(w, h) * .49);
     final outline = [
       Offset(-w + r, -h),
       Offset(w - r, -h),
@@ -265,40 +273,66 @@ class _ModelPainter extends CustomPainter {
     return result;
   }
 
-  List<_Face> _faces() {
-    if (!model.caseView) {
-      return _solid(1.25, .77, .085, model.color,
-          front: model.front,
-          back: model.tapeBack ?? model.front,
-          frontSurface: false,
-          backSurface: true,
-          edges: model.tapeEdges,
-          radius: .04);
-    }
-    final shell = model.shellColor;
+  List<_Face> _cassette(double w, double h, double depth,
+      {double z = 0, bool surfaces = false}) {
+    final base = model.transparent
+        ? Color.lerp(model.color, const Color(0xFFCFEFF8), .68)!
+            .withValues(alpha: .12)
+        : model.color;
     return [
-      // Back tray, a hollow frame, and a separate cassette seated in the tray.
-      ..._solid(1.35, .8775, .025, const Color(0xFF303B42),
-          back: model.caseBack ?? model.cover,
-          z: -.165,
-          backSurface: true,
-          radius: .025),
-      ..._solid(1.35, .8775, .14, shell, edges: model.caseEdges, radius: .025)
-          .skip(2),
-      ..._solid(1.29, .8175, .14, const Color(0xFF53636B), radius: .018)
-          .skip(2),
-      ..._solid(1.22, .752, .08, model.color,
+      ..._solid(w, h, depth, base,
           front: model.front,
           back: model.tapeBack ?? model.front,
           edges: model.tapeEdges,
+          z: z,
+          frontSurface: surfaces ? false : null,
+          backSurface: surfaces ? true : null,
+          radius: .04),
+    ];
+  }
+
+  List<_Face> _faces() {
+    if (!model.caseView) return _cassette(1.25, .77, .14, surfaces: true);
+    final shell = model.shellColor,
+        inner = Color.lerp(shell, const Color(0xFF263139), .6)!;
+    const h = .8775;
+    return [
+      // Tray floor, outer walls and the inset well leave actual volume for the tape.
+      ..._solid(1.35, h, .02, inner,
+          front: model.interior,
+          back: model.caseBack ?? model.cover,
+          z: -.195,
+          backSurface: true,
           radius: .035),
-      // The lid pivots around the long top edge, as a cassette jewel case does.
-      ..._solid(1.35, .8775, .018, shell,
+      ..._solid(1.35, h, .185, shell,
+              edges: model.caseEdges, z: -.005, radius: .035)
+          .skip(2),
+      ..._solid(1.29, .8175, .172, inner, z: -.005, radius: .025).skip(2),
+      for (final y in [-.83, .83])
+        ..._solid(1.30, .032, .014, shell, dy: y, z: -.161, radius: .012),
+      for (final x in [-1.30, 1.30])
+        ..._solid(.032, .79, .014, shell, dx: x, z: -.161, radius: .012),
+      // Hinge barrels remain attached to the tray edge rather than crossing the tape.
+      for (final x in [-1.29, 1.29])
+        ..._solid(.035, .052, .07, inner,
+            dx: x, dy: -.815, z: -.08, radius: .015),
+      // Front catches and short side supports are separate moulded parts.
+      for (final x in [-.86, .86])
+        ..._solid(.09, .022, .035, shell, dx: x, dy: .82, z: .12, radius: .012),
+      ..._cassette(1.22, .752, .125, z: -.015),
+      // Hinged lid and its return walls rotate around the same long-edge pivot.
+      ..._solid(1.35, h, .018, shell,
           front: model.cover,
-          z: .158,
+          back: model.interior,
+          z: .185,
           hinged: true,
           frontSurface: false,
-          radius: .025),
+          radius: .035),
+      for (final x in [-1.32, 1.32])
+        ..._solid(.025, .81, .055, shell.withValues(alpha: .65),
+            dx: x, z: .185, hinged: true, hingeHeight: h, radius: .012),
+      ..._solid(1.28, .025, .05, shell.withValues(alpha: .75),
+          dy: .84, z: .185, hinged: true, hingeHeight: h, radius: .012),
     ];
   }
 
@@ -496,6 +530,8 @@ class _TapeModelViewState extends State<TapeModelView> {
         if (i >= 5) {
           image =
               await renderTapeEdge(tape, assets, (i - 5) % 4, caseView: i >= 9);
+        } else if (i == 4) {
+          image = await renderCaseInterior(tape, assets);
         } else {
           image = await renderTapeTexture(tape, assets,
               caseView: caseView, backView: back);
@@ -546,6 +582,7 @@ class _TapeModelViewState extends State<TapeModelView> {
               caseEdges: _images.sublist(9, 13).cast<ui.Image>(),
               color: Color(widget.tape.color),
               shellColor: Color(widget.tape.shellColor),
+              transparent: widget.tape.transparent,
               caseView: widget.caseView,
               backView: widget.backView,
               placingSticker: widget.placingSticker,

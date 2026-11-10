@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/tape.dart';
-import '../models/audio_moment.dart';
 import '../services/app_state.dart';
 import '../widgets/tape_artwork.dart';
 import '../widgets/track_artwork.dart';
@@ -57,48 +56,57 @@ class MiniPlayer extends StatelessWidget {
       builder: (context, _) {
         final p = app.playback, t = p.current;
         if (t == null) return const SizedBox.shrink();
-        return Material(
-            color: const Color(0xFF303236),
-            child: SizedBox(
-                height: 74,
-                child: Row(children: [
-                  const SizedBox(width: 8),
-                  SizedBox(width: 66, child: NowPlayingTape(app: app)),
-                  Expanded(
-                      child: InkWell(
-                          onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => PlayerScreen(app: app))),
-                          child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(t.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis),
-                                    Text(
-                                        p.error ??
-                                            (p.busy ? 'Carregando…' : t.artist),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            color: p.error == null
-                                                ? Colors.white60
-                                                : Colors.orange)),
-                                  ])))),
-                  IconButton(
-                      tooltip: p.playing ? 'Pausar' : 'Reproduzir',
-                      onPressed: p.busy ? null : p.toggle,
-                      icon: Icon(p.playing ? Icons.pause : Icons.play_arrow)),
-                  IconButton(
-                      tooltip: 'Próxima',
-                      onPressed: p.busy ? null : p.next,
-                      icon: const Icon(Icons.skip_next)),
-                ])));
+        return Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+            child: Material(
+                color: const Color(0xFF26373E),
+                borderRadius: BorderRadius.circular(18),
+                clipBehavior: Clip.antiAlias,
+                child: SizedBox(
+                    height: 74,
+                    child: Row(children: [
+                      const SizedBox(width: 8),
+                      SizedBox(width: 66, child: NowPlayingTape(app: app)),
+                      Expanded(
+                          child: InkWell(
+                              onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => PlayerScreen(app: app))),
+                              child: Padding(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(t.title,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis),
+                                        Text(
+                                            p.error ??
+                                                (p.busy
+                                                    ? 'Carregando…'
+                                                    : t.artist),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: p.error == null
+                                                    ? Colors.white60
+                                                    : Colors.orange)),
+                                      ])))),
+                      IconButton(
+                          tooltip: p.playing ? 'Pausar' : 'Reproduzir',
+                          onPressed: p.busy ? null : p.toggle,
+                          icon:
+                              Icon(p.playing ? Icons.pause : Icons.play_arrow)),
+                      IconButton(
+                          tooltip: 'Próxima',
+                          onPressed: p.busy ? null : p.next,
+                          icon: const Icon(Icons.skip_next)),
+                    ]))));
       });
 }
 
@@ -114,88 +122,7 @@ class PlayerScreen extends StatefulWidget {
 class _PlayerScreenState extends State<PlayerScreen> {
   late bool _vertical;
   double? _dragPosition;
-  RangeValues? _markRange;
-  String? _markUri;
-  bool _markEnd = true,
-      _savingMoment = false,
-      _hasMarkStart = false,
-      _hasMarkEnd = false;
-  Future<void> _moments() async {
-    final begin = await showAudioMoments(context, widget.app);
-    if (!mounted || begin != true) return;
-    final p = widget.app.playback, total = p.duration.inMilliseconds.toDouble();
-    if (p.current == null || total < 1000) return;
-    final start =
-        p.position.inMilliseconds.toDouble().clamp(0, total - 1000).toDouble();
-    setState(() {
-      _markUri = p.current!.uri.toString();
-      _markEnd = true;
-      _hasMarkStart = false;
-      _hasMarkEnd = false;
-      _markRange = RangeValues(start, start);
-    });
-  }
-
-  void _markBoundary(bool end) {
-    final p = widget.app.playback, r = _markRange;
-    if (r == null || p.current?.uri.toString() != _markUri) return;
-    final now = p.position.inMilliseconds
-        .toDouble()
-        .clamp(0, p.duration.inMilliseconds.toDouble())
-        .toDouble();
-    if (end && (!_hasMarkStart || now - r.start < 1000)) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(!_hasMarkStart
-              ? 'Marque o início (−).'
-              : 'O fim deve vir depois do início.')));
-      return;
-    }
-    setState(() {
-      _markEnd = end;
-      if (end) {
-        _markRange = RangeValues(r.start, now);
-        _hasMarkEnd = true;
-      } else {
-        _markRange = RangeValues(now, now);
-        _hasMarkStart = true;
-        _hasMarkEnd = false;
-      }
-    });
-  }
-
-  Future<void> _saveMoment() async {
-    final r = _markRange, t = widget.app.playback.current;
-    if (r == null ||
-        t == null ||
-        t.uri.toString() != _markUri ||
-        _savingMoment ||
-        !_hasMarkStart ||
-        !_hasMarkEnd ||
-        r.end - r.start < 1000) return;
-    setState(() => _savingMoment = true);
-    try {
-      await widget.app.saveMoment(AudioMoment(
-          id: DateTime.now().microsecondsSinceEpoch.toString(),
-          name: t.title +
-              ' • ' +
-              clockTime(Duration(milliseconds: r.start.round())) +
-              '–' +
-              clockTime(Duration(milliseconds: r.end.round())),
-          track: t,
-          start: Duration(milliseconds: r.start.round()),
-          end: Duration(milliseconds: r.end.round())));
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Salvo'), duration: Duration(seconds: 1)));
-    } catch (_) {
-      if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Não foi possível salvar.')));
-    } finally {
-      if (mounted) setState(() => _savingMoment = false);
-    }
-  }
-
+  Future<void> _moments() => showAudioMoments(context, widget.app);
   @override
   void initState() {
     super.initState();
@@ -235,7 +162,6 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget _controls(BuildContext context) {
     final app = widget.app, p = app.playback, t = p.current!;
     final total = p.duration.inMilliseconds.toDouble();
-    final marking = _markRange != null && _markUri == t.uri.toString();
     return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -264,56 +190,24 @@ class _PlayerScreenState extends State<PlayerScreen> {
           ]),
           if (p.error != null)
             Text(p.error!, style: const TextStyle(color: Colors.orange)),
-          if (marking) ...[
-            RangeSlider(
-                values: _markRange!,
-                max: total > 0 ? total : 1,
-                onChanged: _savingMoment
-                    ? null
-                    : (v) => setState(() {
-                          if (v.end - v.start < 1000) return;
-                          _markEnd = v.end != _markRange!.end;
-                          _markRange = v;
-                          _hasMarkStart = true;
-                          _hasMarkEnd = true;
-                        })),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              TextButton(
-                  onPressed: () => setState(() => _markEnd = false),
-                  style: TextButton.styleFrom(
-                      foregroundColor:
-                          !_markEnd ? Colors.orangeAccent : Colors.white60),
-                  child: Text(clockTime(
-                      Duration(milliseconds: _markRange!.start.round())))),
-              TextButton(
-                  onPressed: () => setState(() => _markEnd = true),
-                  style: TextButton.styleFrom(
-                      foregroundColor:
-                          _markEnd ? Colors.orangeAccent : Colors.white60),
-                  child: Text(clockTime(
-                      Duration(milliseconds: _markRange!.end.round())))),
-            ]),
-          ] else ...[
-            Slider(
-                value: (_dragPosition ?? p.position.inMilliseconds.toDouble())
-                    .clamp(0, total > 0 ? total : 1),
-                max: total > 0 ? total : 1,
-                onChanged: total <= 0
-                    ? null
-                    : (v) => setState(() => _dragPosition = v),
-                onChangeEnd: total <= 0
-                    ? null
-                    : (v) {
-                        setState(() => _dragPosition = null);
-                        p.seek(Duration(milliseconds: v.round()));
-                      }),
-            Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              Text(clockTime(p.position),
-                  style: const TextStyle(color: Colors.white60)),
-              Text(clockTime(p.duration),
-                  style: const TextStyle(color: Colors.white60))
-            ]),
-          ],
+          Slider(
+              value: (_dragPosition ?? p.position.inMilliseconds.toDouble())
+                  .clamp(0, total > 0 ? total : 1),
+              max: total > 0 ? total : 1,
+              onChanged:
+                  total <= 0 ? null : (v) => setState(() => _dragPosition = v),
+              onChangeEnd: total <= 0
+                  ? null
+                  : (v) {
+                      setState(() => _dragPosition = null);
+                      p.seek(Duration(milliseconds: v.round()));
+                    }),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text(clockTime(p.position),
+                style: const TextStyle(color: Colors.white60, fontSize: 12)),
+            Text(clockTime(p.duration),
+                style: const TextStyle(color: Colors.white60, fontSize: 12)),
+          ]),
           const SizedBox(height: 10),
           Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
             IconButton(
@@ -343,42 +237,18 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 icon: Icon(
                     p.loop == LoopMode.one ? Icons.repeat_one : Icons.repeat)),
           ]),
-          if (marking)
-            Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-              IconButton(
-                  tooltip: 'Marcar início',
-                  onPressed: _savingMoment ? null : () => _markBoundary(false),
-                  icon: const Icon(Icons.remove_rounded)),
-              IconButton(
-                  tooltip: 'Marcar fim',
-                  onPressed: _savingMoment ? null : () => _markBoundary(true),
-                  icon: const Icon(Icons.add_rounded)),
-              IconButton.filledTonal(
-                  tooltip: 'Salvar trecho',
-                  onPressed: _savingMoment || !_hasMarkStart || !_hasMarkEnd
-                      ? null
-                      : _saveMoment,
-                  icon: const Icon(Icons.bookmark_add_rounded)),
-              IconButton(
-                  tooltip: 'Finalizar',
-                  onPressed: _savingMoment
-                      ? null
-                      : () => setState(() => _markRange = null),
-                  icon: const Icon(Icons.done_rounded)),
-            ])
-          else
-            Row(children: [
-              Expanded(
-                  child: TextButton.icon(
-                      onPressed: () => showQueue(context, app),
-                      icon: const Icon(Icons.queue_music_rounded),
-                      label: const Text('Catálogo'))),
-              Expanded(
-                  child: TextButton.icon(
-                      onPressed: _moments,
-                      icon: const Icon(Icons.bookmarks_outlined),
-                      label: const Text('Trechos'))),
-            ]),
+          Row(children: [
+            Expanded(
+                child: TextButton.icon(
+                    onPressed: () => showQueue(context, app),
+                    icon: const Icon(Icons.queue_music_rounded),
+                    label: const Text('Catálogo'))),
+            Expanded(
+                child: TextButton.icon(
+                    onPressed: _moments,
+                    icon: const Icon(Icons.bookmarks_outlined),
+                    label: const Text('Trechos'))),
+          ]),
           Row(children: [
             IconButton(
                 tooltip: 'Parar',

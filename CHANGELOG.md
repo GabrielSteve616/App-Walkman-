@@ -6,6 +6,15 @@ Não existem snapshots completos recuperados dessas versões, portanto elas
 não recebem tags nem commits retroativos. Datas dos commits representam a
 entrada real no controle de versão.
 
+## 0.10.0+18 — alterações locais
+
+- Materiais sólido e cristalino para a fita, aplicados ao 2D e ao 3D.
+- Marcadores de início múltiplos e renomeáveis substituem a seleção de intervalo; dados antigos preservados.
+- Paleta do catálogo derivada da capa, com contraste automático.
+- Compartimento, pinos, paredes e tampa da case 3D refinados.
+- Interface com nova tipografia, fundos, painéis e miniplayer.
+- Corrige bordas que se cruzavam e peças internas que apareciam atravessando o modelo em 3D.
+
 ## 0.9.2+17 — alterações locais
 
 - − marca o início atual e + marca o fim atual do áudio; salvar registra esse trecho específico.

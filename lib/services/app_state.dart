@@ -99,10 +99,25 @@ class AppState extends ChangeNotifier {
       });
 
   Future<void> saveMoment(AudioMoment m) => _change(() {
-        if (m.start < Duration.zero || m.end <= m.start)
+        if (m.start < Duration.zero || (m.end != null && m.end! <= m.start))
           throw ArgumentError('Trecho inválido');
         return _save(List.of(tapes), List.of(stickers),
             nextMoments: [...moments.where((x) => x.id != m.id), m]);
+      });
+  Future<void> renameMoment(String id, String name) => _change(() {
+        final title = name.trim();
+        if (title.isEmpty) throw ArgumentError('Nome vazio');
+        return _save(List.of(tapes), List.of(stickers),
+            nextMoments: moments
+                .map((m) => m.id == id
+                    ? AudioMoment(
+                        id: m.id,
+                        name: title,
+                        track: m.track,
+                        start: m.start,
+                        end: m.end)
+                    : m)
+                .toList());
       });
   Future<void> deleteMoment(String id) =>
       _change(() => _save(List.of(tapes), List.of(stickers),

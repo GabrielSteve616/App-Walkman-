@@ -41,9 +41,9 @@ class Player extends Playback {
   }
 
   @override
-  Future<void> playRange(LocalTrack t, Duration start, Duration end) async {
+  Future<void> playFrom(LocalTrack t, Duration start) async {
     rangeStart = start;
-    rangeEnd = end;
+    rangeEnd = null;
   }
 }
 
@@ -90,7 +90,8 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final p = Player();
     await p.playTracks([song(1), song(2), song(3)]);
-    final app = AppState(store: CollectionStore(memory: true), playback: p);
+    final bookmarkStore = CollectionStore(memory: true);
+    final app = AppState(store: bookmarkStore, playback: p);
     await app.load();
     await tester.pumpWidget(MaterialApp(home: PlayerScreen(app: app)));
     await tester.pumpAndSettle();
@@ -117,38 +118,33 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Trechos'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Marcar'));
-    await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
-    expect(find.byType(RangeSlider), findsOneWidget);
-    expect(find.text('Trechos'), findsNothing);
-    expect(
-        tester
-            .widgetList<IconButton>(find.byType(IconButton))
-            .firstWhere((b) => b.tooltip == 'Salvar trecho')
-            .onPressed,
-        isNull);
-    await tester.ensureVisible(find.byTooltip('Marcar início'));
-    await tester.pumpAndSettle();
     p.testPosition = const Duration(seconds: 37);
-    await tester.tap(find.byTooltip('Marcar início'));
-    await tester.pump();
+    await tester.tap(find.text('Salvar início'));
+    await tester.pumpAndSettle();
     p.testPosition = const Duration(seconds: 52);
-    await tester.tap(find.byTooltip('Marcar fim'));
+    await tester.tap(find.text('Salvar início'));
+    await tester.pumpAndSettle();
+    expect(app.moments.length, 2);
+    expect(app.moments.map((m) => m.start.inSeconds).toSet(), {37, 52});
+    expect(app.moments.every((m) => m.end == null), isTrue);
+    final first = app.moments.first;
+    await tester.tap(find.byTooltip('Opções do trecho').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Renomear'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Solo favorito');
+    await tester.tap(find.text('Salvar'));
+    await tester.pumpAndSettle();
+    expect(app.moments.first.id, first.id);
+    await tester.tap(find.text('Solo favorito'));
     await tester.pump();
-    await tester.tap(find.byTooltip('Salvar trecho'));
-    await tester.pumpAndSettle();
-    expect(app.moments.single.start, const Duration(seconds: 37));
-    expect(app.moments.single.end, const Duration(seconds: 52));
-    await tester.tap(find.byTooltip('Finalizar'));
-    await tester.pumpAndSettle();
-    expect(find.byType(RangeSlider), findsNothing);
-    await tester.tap(find.text('Trechos'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(app.moments.single.name));
-    await tester.pump();
-    expect(p.rangeStart, const Duration(seconds: 37));
-    expect(p.rangeEnd, const Duration(seconds: 52));
+    expect(p.rangeStart, first.start);
+    expect(p.rangeEnd, isNull);
+    final reopened = AppState(store: bookmarkStore);
+    await reopened.load();
+    expect(reopened.moments.first.name, 'Solo favorito');
+    expect(reopened.moments.length, 2);
+    reopened.dispose();
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
     app.dispose();
