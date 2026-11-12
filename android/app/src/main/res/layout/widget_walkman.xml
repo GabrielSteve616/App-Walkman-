@@ -1,9 +1,0 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/walkmen_panel" android:padding="8dp">
-    <TextView android:id="@+id/widget_song" android:layout_width="match_parent" android:layout_height="24dp" android:textColor="#F1E5CD" android:textSize="13sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" android:text="Walkmen • toque para ouvir" />
-    <ImageView android:id="@+id/widget_device" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:scaleType="fitCenter" android:contentDescription="Walkman, toque para ouvir" />
-    <LinearLayout android:layout_width="match_parent" android:layout_height="40dp" android:gravity="center" android:orientation="horizontal">
-        <ImageButton android:id="@+id/widget_previous" android:layout_width="48dp" android:layout_height="40dp" android:padding="9dp" android:src="@drawable/audio_service_skip_previous" android:background="@android:color/transparent" android:contentDescription="Anterior" />
-        <ImageButton android:id="@+id/widget_toggle" android:layout_width="60dp" android:layout_height="40dp" android:padding="8dp" android:src="@drawable/audio_service_play_arrow" android:background="@android:color/transparent" android:contentDescription="Reproduzir ou pausar" />
-        <ImageButton android:id="@+id/widget_next" android:layout_width="48dp" android:layout_height="40dp" android:padding="9dp" android:src="@drawable/audio_service_skip_next" android:background="@android:color/transparent" android:contentDescription="Próxima" />
-    </LinearLayout>
-</LinearLayout>
