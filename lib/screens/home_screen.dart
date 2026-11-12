@@ -9,6 +9,7 @@ import 'library_screen.dart';
 import 'tapes_screen.dart';
 import 'stickers_screen.dart';
 import 'player_screen.dart';
+import 'backup_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, this.state});
@@ -195,9 +196,20 @@ class _HomeScreenState extends State<HomeScreen> {
                               await _libraryKey.currentState?.chooseFolder();
                               if (mounted) setState(() => _selected = 0);
                             }),
+                        ListTile(
+                            leading: const Icon(Icons.backup_outlined),
+                            title: const Text('Backup e restauração'),
+                            onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => BackupScreen(
+                                        app: _app,
+                                        onRestored: () => _libraryKey
+                                            .currentState
+                                            ?.refresh())))),
                         const ListTile(
                             leading: Icon(Icons.info_outline),
-                            title: Text('Walkmen 0.10.0'),
+                            title: Text('Walkmen 0.12.1'),
                             subtitle: Text(
                                 'Músicas locais, favoritas, fitas, figurinhas e visualização 2D e 3D.')),
                       ]),

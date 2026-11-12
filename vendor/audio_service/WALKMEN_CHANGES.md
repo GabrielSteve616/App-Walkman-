@@ -9,3 +9,5 @@ Custom notification content may be replaced by Android System UI, particularly o
 Walkmen 0.9: visual refresh runs only while the activity is visible, at four-second intervals. The standard media notification is restored on activity stop, avoiding background bitmap animation and allowing System UI to manage playback progress. Activity start/stop requests one immediate refresh; audio/session handling remains in the foreground service.
 
 Release resource protection: the app keeps dynamically referenced media icons; the service falls back to the application icon if a configured notification icon cannot be resolved.
+
+Walkmen 0.10.1: retain the complete media queue internally and publish a 50-item window to MediaSession, keeping original queue IDs and following the current track. This bounds Binder transactions for large folders. Queue updates use one serial executor to preserve order without creating an idle thread per batch.

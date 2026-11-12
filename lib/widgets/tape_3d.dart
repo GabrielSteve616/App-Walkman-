@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/tape.dart';
 import 'tape_artwork.dart';
+import 'glb_model.dart';
+import 'depth_renderer.dart';
+import 'depth_worker.dart';
 
 class SurfaceHit {
   const SurfaceHit(this.uv, this.back);
@@ -50,10 +52,18 @@ class _Tape3DState extends State<Tape3D> {
   double _x = -.12, _y = 0, _zoom = 1, _startZoom = 1, _lid = 0;
   Offset _last = Offset.zero;
   bool _openByTouch = false;
+  bool _interacting = false;
+  WalkmenModels? _geometry;
   @override
   void initState() {
     super.initState();
+    _geometry = WalkmenModels.current;
     if (widget.backView) _y = math.pi;
+    WalkmenModels.load().then((m) {
+      if (mounted) setState(() => _geometry = m);
+    }).catchError((Object e) {
+      debugPrint("Walkmen GLB: $e");
+    });
   }
 
   @override
@@ -68,13 +78,12 @@ class _Tape3DState extends State<Tape3D> {
 
   @override
   Widget build(BuildContext context) => widget.previewOnly
-      ? CustomPaint(
-          painter: _ModelPainter(widget, -.12, 0, 1, 0),
-          child: const SizedBox.expand())
+      ? _DepthCanvas(painter: _ModelPainter(widget, -.12, 0, 1, 0, _geometry))
       : Column(children: [
           Expanded(child: LayoutBuilder(builder: (context, c) {
             final size = Size(c.maxWidth, c.maxHeight);
-            final painter = _ModelPainter(widget, _x, _y, _zoom, _lid);
+            final painter =
+                _ModelPainter(widget, _x, _y, _zoom, _lid, _geometry);
             void place(Offset position) {
               final hit = painter.surfaceAt(position, size);
               if (hit != null) widget.onPlace?.call(hit);
@@ -100,6 +109,7 @@ class _Tape3DState extends State<Tape3D> {
                     onScaleStart: (d) {
                       _last = d.localFocalPoint;
                       _startZoom = _zoom;
+                      setState(() => _interacting = true);
                     },
                     onScaleUpdate: (d) {
                       if (d.pointerCount == 1 && widget.placingSticker) {
@@ -123,10 +133,12 @@ class _Tape3DState extends State<Tape3D> {
                         _last = d.localFocalPoint;
                       });
                     },
+                    onScaleEnd: (_) {
+                      if (_interacting) setState(() => _interacting = false);
+                    },
                     child: ClipRect(
-                        child: CustomPaint(
-                            painter: painter,
-                            child: const SizedBox.expand()))));
+                        child: _DepthCanvas(
+                            painter: painter, interacting: _interacting))));
           })),
           if (widget.caseView && !widget.placingSticker)
             Wrap(alignment: WrapAlignment.center, spacing: 8, children: [
@@ -174,7 +186,10 @@ class _V {
 }
 
 class _Face {
-  _Face(this.points, this.color, {this.image, this.quad, this.surface});
+  _Face(this.points, this.color,
+      {this.image, this.quad, this.surface, this.uv, this.imported = false});
+  final bool imported;
+  final List<Offset>? uv;
   final List<_V> points;
   final Color color;
   final ui.Image? image;
@@ -183,8 +198,10 @@ class _Face {
   double get depth => points.fold(0.0, (v, p) => v + p.z) / points.length;
 }
 
-class _ModelPainter extends CustomPainter {
-  _ModelPainter(this.model, this.rx, this.ry, this.zoom, this.lid);
+class _ModelPainter {
+  _ModelPainter(
+      this.model, this.rx, this.ry, this.zoom, this.lid, this.geometry);
+  final WalkmenModels? geometry;
   final Tape3D model;
   final double rx, ry, zoom, lid;
   List<_Face> _solid(double w, double h, double d, Color base,
@@ -291,19 +308,126 @@ class _ModelPainter extends CustomPainter {
     ];
   }
 
-  List<_Face> _faces() {
+  List<_Face> _glbFaces(GlbModel source,
+      {bool cassette = false, double scale = 1, double z = 0}) {
+    final result = <_Face>[];
+    final zs = source.parts.expand((p) => p.points).map((p) => p.z);
+    final minZ = zs.reduce(math.min), maxZ = zs.reduce(math.max);
+    for (final part in source.parts) {
+      _V convert(ModelPoint v) {
+        var p = _V(v.x * scale, v.y * scale, v.z * scale + z);
+        if (part.hinged && model.caseView && !cassette) {
+          final pivot = part.pivot, py = p.y - pivot.y, pz = p.z - pivot.z;
+          p = _V(p.x, py * math.cos(-lid) - pz * math.sin(-lid) + pivot.y,
+              py * math.sin(-lid) + pz * math.cos(-lid) + pivot.z);
+        }
+        return p.rotate(rx, ry);
+      }
+
+      for (var i = 0; i + 2 < part.indices.length; i += 3) {
+        final raw = [
+          for (var j = 0; j < 3; j++) part.points[part.indices[i + j]]
+        ];
+        final a = _V(raw[0].x, raw[0].y, raw[0].z),
+            b = _V(raw[1].x, raw[1].y, raw[1].z),
+            c = _V(raw[2].x, raw[2].y, raw[2].z),
+            n = (b - a).cross(c - a);
+        final length = math.sqrt(n.dot(n));
+        if (length < 1e-9) continue;
+        final front = n.z < 0, planar = n.z.abs() / length > .72;
+        final points = raw.map(convert).toList();
+        final center = points.reduce((a, b) => a + b).times(1 / 3),
+            normal = (points[1] - points[0]).cross(points[2] - points[0]);
+        if (normal.dot(const _V(0, 0, 6) - center) >= 0) continue;
+        final isTape = cassette || !model.caseView;
+        final color = isTape ? model.color : model.shellColor;
+        final shade = (.75 + .25 * (n.z.abs() / length)).clamp(0.0, 1.0);
+        final base = Color.lerp(Colors.black, color, shade)!;
+        ui.Image? image;
+        bool? surface;
+        List<Offset>? uv;
+        if (planar) {
+          image = isTape
+              ? (front ? model.front : model.tapeBack)
+              : (front
+                  ? (part.hinged ? model.cover : model.interior)
+                  : (part.hinged ? model.interior : model.caseBack));
+          surface = isTape
+              ? (model.caseView ? null : !front)
+              : (part.hinged && front
+                  ? false
+                  : (!part.hinged && !front ? true : null));
+          final w = isTape ? 1.25 : 1.35, h = isTape ? .77 : .8775;
+          uv = [
+            for (final p in raw)
+              Offset((front ? p.x / w : -p.x / w) * .5 + .5, p.y / h * .5 + .5)
+          ];
+        } else {
+          final edges = isTape ? model.tapeEdges : model.caseEdges;
+          if (edges.length == 4) {
+            final w = isTape ? 1.25 : 1.35, h = isTape ? .77 : .8775;
+            final side =
+                n.x.abs() > n.y.abs() ? (n.x < 0 ? 1 : 3) : (n.y > 0 ? 0 : 2);
+            image = edges[side];
+            uv = [
+              for (final p in raw)
+                switch (side) {
+                  0 => Offset(p.x / w * .5 + .5, (p.z - minZ) / (maxZ - minZ)),
+                  1 => Offset((maxZ - p.z) / (maxZ - minZ), p.y / h * .5 + .5),
+                  2 => Offset(p.x / w * .5 + .5, (maxZ - p.z) / (maxZ - minZ)),
+                  _ => Offset((p.z - minZ) / (maxZ - minZ), p.y / h * .5 + .5),
+                }
+            ];
+          }
+        }
+        result.add(_Face(points,
+            isTape && model.transparent ? base.withValues(alpha: .2) : base,
+            image: image, surface: surface, uv: uv, imported: true));
+      }
+    }
+    return result;
+  }
+
+  List<_Face> _trayPanel(Color color, double z, ui.Image? image,
+      {bool back = false}) {
+    final faces = <_Face>[];
+    _V p(double u, double v) =>
+        _V((u - .5) * 2.7, (v - .5) * 1.755, z).rotate(rx, ry);
+    Offset uv(double u, double v) => Offset(back ? 1 - u : u, v);
+    const steps = 1;
+    for (var y = 0; y < steps; y++) {
+      for (var x = 0; x < steps; x++) {
+        final u = x / steps,
+            v = y / steps,
+            nu = (x + 1) / steps,
+            nv = (y + 1) / steps;
+        faces.add(_Face([p(u, v), p(nu, v), p(nu, nv)], color,
+            image: image,
+            uv: [uv(u, v), uv(nu, v), uv(nu, nv)],
+            surface: back ? true : null,
+            imported: true));
+        faces.add(_Face([p(u, v), p(nu, nv), p(u, nv)], color,
+            image: image,
+            uv: [uv(u, v), uv(nu, nv), uv(u, nv)],
+            surface: back ? true : null,
+            imported: true));
+      }
+    }
+    return faces;
+  }
+
+  List<_Face>? _cachedFaces;
+  List<_Face> _faces() => _cachedFaces ??= _buildFaces();
+  List<_Face> _buildFaces() {
+    if (geometry != null && !model.caseView) return _glbFaces(geometry!.tape);
     if (!model.caseView) return _cassette(1.25, .77, .14, surfaces: true);
     final shell = model.shellColor,
         inner = Color.lerp(shell, const Color(0xFF263139), .6)!;
     const h = .8775;
     return [
       // Tray floor, outer walls and the inset well leave actual volume for the tape.
-      ..._solid(1.35, h, .02, inner,
-          front: model.interior,
-          back: model.caseBack ?? model.cover,
-          z: -.195,
-          backSurface: true,
-          radius: .035),
+      ..._trayPanel(inner, -.175, model.interior),
+      ..._trayPanel(inner, -.215, model.caseBack ?? model.cover, back: true),
       ..._solid(1.35, h, .185, shell,
               edges: model.caseEdges, z: -.005, radius: .035)
           .skip(2),
@@ -319,7 +443,10 @@ class _ModelPainter extends CustomPainter {
       // Front catches and short side supports are separate moulded parts.
       for (final x in [-.86, .86])
         ..._solid(.09, .022, .035, shell, dx: x, dy: .82, z: .12, radius: .012),
-      ..._cassette(1.22, .752, .125, z: -.015),
+      if (geometry != null && lid > .001)
+        ..._glbFaces(geometry!.tape, cassette: true, scale: .94, z: -.015)
+      else if (geometry == null && lid > .001)
+        ..._cassette(1.22, .752, .125, z: -.015),
       // Hinged lid and its return walls rotate around the same long-edge pivot.
       ..._solid(1.35, h, .018, shell,
           front: model.cover,
@@ -329,9 +456,9 @@ class _ModelPainter extends CustomPainter {
           frontSurface: false,
           radius: .035),
       for (final x in [-1.32, 1.32])
-        ..._solid(.025, .81, .055, shell.withValues(alpha: .65),
+        ..._solid(.025, .81, .055, shell,
             dx: x, z: .185, hinged: true, hingeHeight: h, radius: .012),
-      ..._solid(1.28, .025, .05, shell.withValues(alpha: .75),
+      ..._solid(1.28, .025, .05, shell,
           dy: .84, z: .185, hinged: true, hingeHeight: h, radius: .012),
     ];
   }
@@ -396,79 +523,21 @@ class _ModelPainter extends CustomPainter {
       if (det.abs() < 1e-8) continue;
       final u = (q.dot(e) * ff - q.dot(f) * ef) / det,
           v = (q.dot(f) * ee - q.dot(e) * ef) / det;
-      if (u < 0 || u > 1 || v < 0 || v > 1) continue;
+      if (u < 0 || u > 1 || v < 0 || v > 1 || (face.uv != null && u + v > 1))
+        continue;
       final polygon = Path()
         ..addPolygon(face.points.map((p) => _project(p, size)).toList(), true);
       if (!polygon.contains(screen)) continue;
       nearest = t;
       picked = face;
-      uv = Offset(u, v);
+      uv = face.uv == null
+          ? Offset(u, v)
+          : face.uv![0] * (1 - u - v) + face.uv![1] * u + face.uv![2] * v;
     }
     return picked?.surface == null || uv == null
         ? null
         : SurfaceHit(uv, picked!.surface!);
   }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.drawOval(
-        Rect.fromCenter(
-            center: Offset(size.width / 2, size.height * .9),
-            width: size.width * .5,
-            height: 14),
-        Paint()
-          ..color = Colors.black38
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
-    final faces = _faces()..sort((a, b) => a.depth.compareTo(b.depth));
-    for (final face in faces) {
-      final path = Path()
-        ..addPolygon(face.points.map((p) => _project(p, size)).toList(), true);
-      canvas.drawPath(path, Paint()..color = face.color);
-      final image = face.image, quad = face.quad;
-      if (image != null && quad != null) {
-        final vertices = <Offset>[], uv = <Offset>[], indices = <int>[];
-        const steps = 12;
-        for (var row = 0; row <= steps; row++)
-          for (var col = 0; col <= steps; col++) {
-            final u = col / steps, v = row / steps;
-            final p = quad[0].times((1 - u) * (1 - v)) +
-                quad[1].times(u * (1 - v)) +
-                quad[2].times(u * v) +
-                quad[3].times((1 - u) * v);
-            vertices.add(_project(p, size));
-            uv.add(Offset(u * image.width, v * image.height));
-            if (row < steps && col < steps) {
-              final n = row * (steps + 1) + col;
-              indices.addAll(
-                  [n, n + 1, n + steps + 2, n, n + steps + 2, n + steps + 1]);
-            }
-          }
-        final shader = ui.ImageShader(
-            image,
-            ui.TileMode.clamp,
-            ui.TileMode.clamp,
-            Float64List.fromList(
-                [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]));
-        final mesh = ui.Vertices(ui.VertexMode.triangles, vertices,
-            textureCoordinates: uv, indices: indices);
-        canvas.save();
-        canvas.clipPath(path);
-        canvas.drawVertices(mesh, BlendMode.srcOver, Paint()..shader = shader);
-        canvas.restore();
-        mesh.dispose();
-        shader.dispose();
-      }
-      canvas.drawPath(
-          path,
-          Paint()
-            ..color = Colors.white38
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = .65);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _ModelPainter old) => true;
 }
 
 class TapeModelView extends StatefulWidget {
@@ -590,4 +659,192 @@ class _TapeModelViewState extends State<TapeModelView> {
               onPlace: widget.onPlace,
               onTrackTap: widget.onTrackTap,
               trackCount: widget.tape.tracks.length);
+}
+
+class _DepthCanvas extends StatefulWidget {
+  const _DepthCanvas({required this.painter, this.interacting = false});
+  final _ModelPainter painter;
+  final bool interacting;
+  @override
+  State<_DepthCanvas> createState() => _DepthCanvasState();
+}
+
+class _DepthCanvasState extends State<_DepthCanvas> {
+  static final _textures = Expando<Future<DepthTexture>>();
+  DepthWorker? _worker;
+  ui.Image? _image;
+  bool _busy = false;
+  int? _rendered;
+  int? _desired;
+  @override
+  void dispose() {
+    _worker?.dispose();
+    _image?.dispose();
+    super.dispose();
+  }
+
+  Future<DepthTexture> _texture(ui.Image image) =>
+      _textures[image] ??= () async {
+        final bytes =
+            await image.toByteData(format: ui.ImageByteFormat.rawStraightRgba);
+        return DepthTexture(
+            image.width,
+            image.height,
+            bytes!.buffer
+                .asUint8List(bytes.offsetInBytes, bytes.lengthInBytes));
+      }();
+  Future<void> _render(_ModelPainter painter, Size size, int key) async {
+    _busy = true;
+    try {
+      final moving = painter.model.caseView && widget.interacting;
+      final scale = moving
+          ? math.min(1.0, 400 / math.max(size.width, size.height))
+          : math.min(1.5, 640 / math.max(size.width, size.height));
+      final width = math.max(1, (size.width * scale).round()),
+          height = math.max(1, (size.height * scale).round());
+      final triangles = <DepthTriangle>[];
+      final faces = painter._faces();
+      final requests = <ui.Image, Future<DepthTexture>>{
+        for (final face in faces)
+          if (face.image != null) face.image!: _texture(face.image!),
+      };
+      final textures = <ui.Image, DepthTexture>{};
+      for (final entry in requests.entries) {
+        textures[entry.key] = await entry.value;
+      }
+      for (final face in faces) {
+        final texture = textures[face.image];
+        List<Offset>? uv = face.uv;
+        if (uv == null && face.quad != null) {
+          final q = face.quad!,
+              e = q[1] - q[0],
+              f = q[3] - q[0],
+              ee = e.dot(e),
+              ff = f.dot(f),
+              ef = e.dot(f),
+              det = ee * ff - ef * ef;
+          if (det.abs() > 1e-10)
+            uv = [
+              for (final v in face.points)
+                Offset(((v - q[0]).dot(e) * ff - (v - q[0]).dot(f) * ef) / det,
+                    ((v - q[0]).dot(f) * ee - (v - q[0]).dot(e) * ef) / det)
+            ];
+        }
+        final vertices = <DepthVertex>[];
+        for (var i = 0; i < face.points.length; i++) {
+          final point = face.points[i],
+              projected = painter._project(point, size),
+              at = uv?[i] ?? Offset.zero;
+          vertices.add(DepthVertex(projected.dx * scale, projected.dy * scale,
+              1 / (6 - point.z), at.dx, at.dy));
+        }
+        for (var i = 1; i + 1 < vertices.length; i++) {
+          triangles.add(DepthTriangle(vertices[0], vertices[i], vertices[i + 1],
+              face.color.toARGB32(), texture));
+        }
+      }
+      final rgba =
+          await (_worker ??= DepthWorker()).render(width, height, triangles);
+      if (!mounted) return;
+      final complete = Completer<ui.Image>();
+      ui.decodeImageFromPixels(
+          rgba, width, height, ui.PixelFormat.rgba8888, complete.complete);
+      final next = await complete.future;
+      if (!mounted) {
+        next.dispose();
+        return;
+      }
+      // Keep showing completed gesture frames while a newer angle is queued;
+      // otherwise rapid dragging can discard every frame until the user stops.
+      // A changed model or the final high-quality frame must never use stale data.
+      final sameModel = widget.painter.model.caseView ==
+              painter.model.caseView &&
+          widget.painter.model.color == painter.model.color &&
+          widget.painter.model.shellColor == painter.model.shellColor &&
+          widget.painter.model.transparent == painter.model.transparent &&
+          identical(widget.painter.geometry, painter.geometry) &&
+          identical(widget.painter.model.front, painter.model.front) &&
+          identical(widget.painter.model.tapeBack, painter.model.tapeBack) &&
+          identical(widget.painter.model.cover, painter.model.cover) &&
+          identical(widget.painter.model.caseBack, painter.model.caseBack) &&
+          identical(widget.painter.model.interior, painter.model.interior);
+      if (key != _desired && !(widget.interacting && sameModel)) {
+        next.dispose();
+        return;
+      }
+      final previous = _image;
+      setState(() {
+        _image = next;
+        _rendered = key;
+      });
+      if (previous != null)
+        WidgetsBinding.instance.addPostFrameCallback((_) => previous.dispose());
+    } catch (e) {
+      if (mounted) debugPrint('Walkmen: renderização 3D: $e');
+      _rendered = key;
+    } finally {
+      _busy = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+        final p = widget.painter,
+            m = p.model,
+            size = Size(c.maxWidth, c.maxHeight);
+        final key = Object.hashAll([
+          p.rx,
+          p.ry,
+          p.zoom,
+          p.lid,
+          p.geometry,
+          size,
+          m.caseView,
+          m.front,
+          m.cover,
+          m.caseBack,
+          m.tapeBack,
+          m.interior,
+          m.color,
+          m.shellColor,
+          m.transparent,
+          widget.interacting,
+          ...m.tapeEdges,
+          ...m.caseEdges
+        ]);
+        _desired = key;
+        if (!_busy && key != _rendered && size.width > 0 && size.height > 0) {
+          unawaited(_render(p, size, key));
+        }
+        return CustomPaint(
+            painter: _DepthImagePainter(_image),
+            child: const SizedBox.expand());
+      });
+}
+
+class _DepthImagePainter extends CustomPainter {
+  const _DepthImagePainter(this.image);
+  final ui.Image? image;
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawOval(
+        Rect.fromCenter(
+            center: Offset(size.width / 2, size.height * .9),
+            width: size.width * .5,
+            height: 14),
+        Paint()
+          ..color = Colors.black38
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12));
+    if (image != null)
+      canvas.drawImageRect(
+          image!,
+          Rect.fromLTWH(
+              0, 0, image!.width.toDouble(), image!.height.toDouble()),
+          Offset.zero & size,
+          Paint()..filterQuality = FilterQuality.medium);
+  }
+
+  @override
+  bool shouldRepaint(_DepthImagePainter old) => old.image != image;
 }

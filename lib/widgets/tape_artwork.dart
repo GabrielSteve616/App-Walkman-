@@ -4,10 +4,12 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import '../models/tape.dart';
+import 'glb_model.dart';
 
 class ArtTextures {
-  ArtTextures(this.images);
+  ArtTextures(this.images, [this.models]);
   final Map<String, ui.Image> images;
+  final WalkmenModels? models;
   static final _cache = LinkedHashMap<String, Future<ui.Image?>>();
   static Future<ui.Image?> _image(String path) =>
       _cache.putIfAbsent(path, () async {
@@ -40,7 +42,7 @@ class ArtTextures {
       final image = await _image(path);
       if (image != null) images[path] = image;
     }
-    return ArtTextures(images);
+    return ArtTextures(images, await WalkmenModels.load());
   }
 }
 
@@ -138,6 +140,29 @@ class TapePainter extends CustomPainter {
   final bool caseView, backView;
   final double reelAngle;
   final int? selected;
+  Path _silhouette() {
+    final models = textures.models ?? WalkmenModels.current;
+    final mesh = caseView ? null : models?.tape;
+    final rect = caseView
+        ? const Rect.fromLTWH(8, 8, 584, 374)
+        : const Rect.fromLTWH(14, 18, 572, 334);
+    if (mesh == null)
+      return Path()
+        ..addRRect(
+            RRect.fromRectAndRadius(rect, Radius.circular(caseView ? 12 : 17)));
+    final points = mesh.outline;
+    final minX = points.map((p) => p.x).reduce(math.min),
+        maxX = points.map((p) => p.x).reduce(math.max),
+        minY = points.map((p) => p.y).reduce(math.min),
+        maxY = points.map((p) => p.y).reduce(math.max);
+    return Path()
+      ..addPolygon([
+        for (final p in points)
+          Offset(rect.left + (p.x - minX) / (maxX - minX) * rect.width,
+              rect.top + (p.y - minY) / (maxY - minY) * rect.height)
+      ], true);
+  }
+
   void _text(Canvas c, String text, Offset offset, double size, Color color,
       double width,
       {int lines = 1}) {
@@ -150,6 +175,14 @@ class TapePainter extends CustomPainter {
                 fontSize: size,
                 height: 1.1,
                 color: color,
+                shadows: caseView && !backView && tape.coverPath != null
+                    ? const [
+                        Shadow(
+                            color: Colors.black87,
+                            blurRadius: 3,
+                            offset: Offset(0, 1))
+                      ]
+                    : null,
                 fontWeight: FontWeight.w800,
                 letterSpacing: .7)),
         textDirection: TextDirection.ltr,
@@ -178,24 +211,21 @@ class TapePainter extends CustomPainter {
     c.drawRect(insert,
         Paint()..color = Color.lerp(Color(tape.caseColor), Colors.black, .65)!);
     final cover = textures.images[tape.coverPath];
+    final frontInk = Color.lerp(Color(tape.caseColor), Colors.black, .30)!
+                    .computeLuminance() >
+                .18 &&
+            cover == null
+        ? const Color(0xFF1C2024)
+        : const Color(0xFFF1E7D1);
     if (!backView && cover != null) {
       paintImage(canvas: c, rect: insert, image: cover, fit: BoxFit.cover);
-      c.drawRect(
-          insert,
-          Paint()
-            ..shader = const LinearGradient(colors: [
-              Colors.black54,
-              Colors.transparent,
-              Colors.black87
-            ], begin: Alignment.topCenter, end: Alignment.bottomCenter)
-                .createShader(insert));
     } else if (!backView) {
       c.drawRect(
           insert,
           Paint()
             ..shader = LinearGradient(colors: [
               Color.lerp(Color(tape.caseColor), Colors.black, .30)!,
-              const Color(0xFF080B10)
+              Color.lerp(Color(tape.caseColor), Colors.black, .45)!
             ], begin: Alignment.topLeft, end: Alignment.bottomRight)
                 .createShader(insert));
       final bolt = Path()
@@ -216,16 +246,26 @@ class TapePainter extends CustomPainter {
               ..strokeWidth = 1);
       }
     }
-    _text(c, backView ? 'TRACK LIST / LADO B' : 'ROCK • COMPACT CASSETTE',
-        const Offset(55, 38), 14, Color(tape.caseTextColor ?? 0xFFE4CDA5), 490);
+    _text(
+        c,
+        backView ? 'TRACK LIST / LADO B' : 'ROCK • COMPACT CASSETTE',
+        const Offset(55, 38),
+        14,
+        backView ? Color(tape.caseTextColor ?? 0xFFE4CDA5) : frontInk,
+        490);
     c.drawLine(
         const Offset(55, 62),
         const Offset(548, 62),
         Paint()
           ..color = Color(tape.color)
           ..strokeWidth = 3);
-    _text(c, tape.name.toUpperCase(), const Offset(55, 75), backView ? 22 : 36,
-        Color(tape.caseTextColor ?? 0xFFF1E7D1), backView ? 490 : 330,
+    _text(
+        c,
+        tape.name.toUpperCase(),
+        const Offset(55, 75),
+        backView ? 22 : 36,
+        backView ? Color(tape.caseTextColor ?? 0xFFF1E7D1) : frontInk,
+        backView ? 490 : 330,
         lines: backView ? 1 : 3);
     if (backView) {
       for (var i = 0; i < math.min(10, tape.tracks.length); i++) {
@@ -542,15 +582,22 @@ class TapePainter extends CustomPainter {
     final height = caseView ? 390.0 : 370.0;
     canvas.save();
     canvas.scale(size.width / 600, size.height / height);
+    final silhouette = _silhouette();
+    canvas.drawShadow(silhouette, Colors.black, 8, false);
+    canvas.save();
+    canvas.clipPath(silhouette);
+    canvas.drawPath(
+        silhouette,
+        Paint()
+          ..color = Color(caseView ? tape.shellColor : tape.color)
+              .withValues(alpha: !caseView && tape.transparent ? .2 : 1));
     if (caseView)
       _case(canvas);
     else
       _cassette(canvas);
+    canvas.restore();
     canvas.save();
-    final stickerClip = caseView
-        ? Rect.fromLTWH(0, 0, 600, 390)
-        : Rect.fromLTWH(0, 0, 600, 370);
-    canvas.clipRect(stickerClip);
+    canvas.clipPath(silhouette);
     for (var i = 0; i < tape.stickers.length; i++) {
       final p = tape.stickers[i];
       if (p.onCase != caseView) continue;

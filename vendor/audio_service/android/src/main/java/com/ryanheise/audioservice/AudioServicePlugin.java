@@ -59,6 +59,7 @@ import android.util.Log;
  * AudioservicePlugin
  */
 public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
+    private static final java.util.concurrent.ExecutorService queueExecutor = Executors.newSingleThreadExecutor();
     private static String flutterEngineId = "audio_service_engine";
     /** Must be called BEFORE any FlutterEngine is created. e.g. in Application class. */
     public static void setFlutterEngineId(String id) {
@@ -850,7 +851,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     break;
                 }
                 case "setQueue": {
-                    Executors.newSingleThreadExecutor().execute(() -> {
+                    queueExecutor.execute(() -> {
                         try {
                             @SuppressWarnings("unchecked") List<Map<?, ?>> rawQueue = (List<Map<?, ?>>) args.get("queue");
                             List<MediaSessionCompat.QueueItem> queue = raw2queue(rawQueue);

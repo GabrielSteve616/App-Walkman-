@@ -344,7 +344,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         mediaSession.setPlaybackState(stateBuilder.build());
         mediaSession.setCallback(mediaSessionCallback = new MediaSessionCallback());
         setSessionToken(mediaSession.getSessionToken());
-        mediaSession.setQueue(queue);
+        publishQueueWindow();
 
         PowerManager pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, AudioService.class.getName());
@@ -569,8 +569,13 @@ public class AudioService extends MediaBrowserServiceCompat {
             stateBuilder.addCustomAction(action);
         }
 
-        if (queueIndex != null)
+        if (queueIndex != null) {
             stateBuilder.setActiveQueueItemId(queueIndex);
+            walkmenQueueIndex = queueIndex;
+            if (walkmenQueueStart < 0 || queueIndex < walkmenQueueStart ||
+                    queueIndex >= walkmenQueueStart + 40 || walkmenPublishedSize != queue.size())
+                publishQueueWindow();
+        }
         if (errorCode != null && errorMessage != null)
             stateBuilder.setErrorMessage(errorCode, errorMessage);
         else if (errorMessage != null)
@@ -801,9 +806,25 @@ public class AudioService extends MediaBrowserServiceCompat {
      * Updates queue.
      * Gets called from background thread.
      */
+    private long walkmenQueueIndex = 0;
+    private int walkmenQueueStart = -1;
+    private int walkmenPublishedSize = -1;
+
+    // Android Binder has a per-transaction size limit. Keep the full queue in
+    // the service; publish a small window with original IDs to external clients.
+    private synchronized void publishQueueWindow() {
+        if (mediaSession == null || queue == null) return;
+        int selected = (int)Math.max(0, Math.min(walkmenQueueIndex, queue.size() - 1));
+        int start = Math.max(0, selected - 25);
+        int end = Math.min(queue.size(), start + 50);
+        walkmenQueueStart = start;
+        walkmenPublishedSize = queue.size();
+        mediaSession.setQueue(new ArrayList<>(queue.subList(start, end)));
+    }
+
     synchronized void setQueue(List<MediaSessionCompat.QueueItem> queue) {
         AudioService.queue = queue;
-        mediaSession.setQueue(queue);
+        publishQueueWindow();
     }
 
     void playMediaItem(MediaDescriptionCompat description) {

@@ -24,6 +24,21 @@ class TestLibrary implements MusicLibrary {
       ];
 }
 
+class SearchLibrary extends TestLibrary {
+  @override
+  Future<List<LocalTrack>> loadTracks() async => [
+        for (final pair in [('Aurora', 'Pasta A'), ('Estrada', 'Pasta B')])
+          LocalTrack(
+              id: pair.$1,
+              title: pair.$1,
+              artist: 'Artista',
+              album: 'Álbum',
+              folder: pair.$2,
+              uri: Uri.parse('content://music/' + pair.$1),
+              duration: Duration.zero)
+      ];
+}
+
 class TestPlayback extends Playback {
   int calls = 0;
   @override
@@ -67,6 +82,32 @@ void main() {
     await tester.tap(find.text('Ajustes'));
     await tester.pumpAndSettle();
     expect(find.text('Alterar pasta de músicas'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    app.dispose();
+  });
+  testWidgets('Pesquisa global toca resultado mesmo com outra pasta aberta',
+      (tester) async {
+    final playback = TestPlayback();
+    final app =
+        AppState(store: CollectionStore(memory: true), playback: playback);
+    await app.load();
+    final key = GlobalKey<LibraryScreenState>();
+    await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+            body:
+                LibraryScreen(key: key, library: SearchLibrary(), app: app))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pasta A'));
+    await tester.pumpAndSettle();
+    key.currentState!.toggleSearch();
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Estrada');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Estrada').last);
+    await tester.pumpAndSettle();
+    expect(playback.calls, 1);
+    expect(playback.current!.folder, 'Pasta B');
+    expect(playback.current!.title, 'Estrada');
     await tester.pumpWidget(const SizedBox());
     app.dispose();
   });

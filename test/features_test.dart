@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:walkman/models/local_track.dart';
 import 'package:walkman/models/tape.dart';
 import 'package:walkman/services/app_state.dart';
@@ -59,7 +60,11 @@ void main() {
     await store.write({
       'tapes': ['segundo']
     });
-    await File('${directory.path}/collection.json').writeAsString('{');
+    final db = await openDatabase('${directory.path}/walkmen.sqlite',
+        singleInstance: false);
+    await db.update('collection', {'document': '{'},
+        where: 'id = ?', whereArgs: [1]);
+    await db.close();
     expect((await store.read())['tapes'], ['primeiro']);
     await directory.delete(recursive: true);
   });
@@ -101,9 +106,16 @@ void main() {
     final images = await tester.runAsync(() async => [
           await renderTapeTexture(tape, []),
           await renderTapeTexture(tape, [], caseView: true),
+          await renderTapeTexture(tape, [], caseView: true, backView: true),
+          await renderCaseInterior(tape, []),
         ]);
     final key = GlobalKey();
     Future<void> capture(String name) async {
+      for (var i = 0; i < 8; i++) {
+        await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 60)));
+        await tester.pump();
+      }
       await tester.runAsync(() async {
         final boundary =
             key.currentContext!.findRenderObject() as RenderRepaintBoundary;
@@ -147,8 +159,11 @@ void main() {
                             front: images[0],
                             cover: images[1],
                             color: Colors.blue,
-                            caseView: true)))))));
+                            caseView: true,
+                            caseBack: images[2],
+                            interior: images[3])))))));
     await tester.pumpAndSettle();
+    await capture('case-glb-fechada');
     await tester.tap(find.text('Abrir'));
     final paint = find
         .descendant(of: find.byType(Tape3D), matching: find.byType(CustomPaint))

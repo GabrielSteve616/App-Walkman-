@@ -1,6 +1,60 @@
-# Walkmen — 0.10.0
+# Walkmen — 0.12.1
 
 Leia [minha ideia para o Walkmen](docs/IDEIA_DO_PROJETO.md): a concepção do aplicativo em primeira pessoa, a experiência que quero criar, o que já foi desenvolvido e as possibilidades futuras.
+
+## Atualização 0.12.1
+
+- Em Backup, escolha entre salvar diretamente em Downloads ou abrir o seletor Android para definir pasta e nome do JSON.
+- Cancelar o seletor não cria backup nem altera a coleção. Erros de escrita são informados; a exportação direta não apaga um arquivo anterior em caso de conflito de nome.
+- Novo ícone adaptável e logotipo interno gerados a partir de image app.png, com enquadramento seguro para a tela inicial.
+
+## Atualização 0.12.0
+
+- A coleção usa SQLite com gravação transacional e uma cópia anterior de segurança. Na primeira abertura, o JSON interno antigo é migrado; os arquivos antigos são preservados.
+- Em Ajustes → Backup e restauração, exporte um JSON para Downloads ou escolha um backup para importar. A importação mostra confirmação antes de substituir a coleção.
+- O arquivo inclui fitas, ordem, cores, fotos de capa e rótulo, figurinhas, posições, favoritas, trechos e opções de reprodução. As imagens são incorporadas ao JSON para permitir restauração.
+- O backup contém referências às músicas, não os arquivos de áudio. Ao reinstalar ou trocar de celular, mantenha ou copie as músicas para o mesmo local e autorize novamente a pasta quando solicitado.
+- O backup é limitado a 128 MB e a 12 MB por imagem. Se uma imagem não estiver disponível, a exportação informa o problema em vez de omiti-la.
+
+## Atualização 0.11.4
+
+- Rotação e abertura da case 3D mais leves: renderização de profundidade em segundo plano, texturas reaproveitadas e menos cálculos por pixel.
+- Com a case fechada, a fita interna não é processada, pois está encoberta. Ao abri-la, a fita aparece no interior normalmente.
+- Durante o gesto a prévia usa menos resolução, restaurando os detalhes ao soltar. A correção de profundidade e as cores de capa permanecem.
+
+## Atualização 0.11.3
+
+- Capa com foto preserva as cores da imagem, sem a camada preta sobreposta.
+- Capa padrão mais clara e letras com contraste automático. Sombra fica apenas nas letras sobre fotos.
+- Ajuste aplicado ao 2D e às texturas usadas no 3D.
+
+## Atualização 0.11.2
+
+- Renderização 3D com profundidade por pixel: faces da fita e da case deixam de ser ordenadas pela distância média, evitando texturas atravessadas durante a rotação.
+- Coordenadas das texturas corrigidas pela perspectiva para acompanhar a malha sem deslizar.
+- Paredes da case opacas; material cristalino da fita continua disponível.
+- Quadros de rotação antigos são descartados e texturas ficam em cache. A fita continua GLB e a case continua gerada por código.
+- Teste de regressão gira a case fechada por uma volta e verifica que a fita não aparece através dela.
+
+## Atualização 0.11.1
+
+- Case restaurada ao modelo gerado por código em 2D e 3D, com tampa por gesto.
+- Fita continua usando o GLB, inclusive dentro da case. O app não depende mais do arquivo case.glb.
+
+## Atualização 0.11.0
+
+- Fita e case em 3D usam os GLBs fornecidos na pasta modelos, empacotados no APK e carregados sem internet.
+- Ajustes de escala, orientação e profundidade acontecem na importação; os arquivos originais foram preservados. A tampa usa a peça animada e seu pivô original, controlada pelo gesto Abrir.
+- A malha recebe as cores, capas, fotos, verso e figurinhas do app, com projeção também nas laterais. Fita sólida/cristalina permanece disponível.
+- O desenho 2D usa a silhueta frontal dos mesmos modelos; as figurinhas são recortadas por esse contorno.
+- Faces grandes são subdivididas para reduzir problemas de sobreposição na renderização. Modelos e texturas são reutilizados durante a navegação.
+
+## Atualização 0.10.1
+
+- Figurinhas recortadas na silhueta da fita em 2D, inclusive nos cantos arredondados; a posição salva continua disponível no modelo 3D.
+- Pesquisa global por música, artista, álbum e pasta, com reprodução direta do resultado mesmo quando outra pasta estava aberta.
+- Pastas grandes: abre primeiro a faixa escolhida e prepara o restante em lotes de até 50, mantendo a ordem e a seleção. A fila externa do Android recebe uma janela limitada para evitar mensagens excessivamente grandes; o catálogo do app mantém todas as faixas.
+- Uma falha de carregamento não deixa a fila marcada como pronta; tocar novamente tenta preparar o áudio outra vez.
 
 ## Atualização 0.10.0
 

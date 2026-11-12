@@ -1,20 +1,23 @@
 name: walkman
 description: Biblioteca musical offline com identidade de fita cassete.
 publish_to: none
-version: 0.10.0+18
+version: 0.12.1+26
 environment:
   sdk: '>=3.4.0 <4.0.0'
 dependencies:
   audio_session: ^0.2.4
+  crypto: ^3.0.8
   flutter:
     sdk: flutter
   image_picker: ^1.2.4
   just_audio: ^0.10.6
   just_audio_background: ^0.0.1-beta.17
   path_provider: ^2.1.6
+  sqflite: ^2.4.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  sqflite_common_ffi: ^2.4.0
 dependency_overrides:
   audio_service:
     path: vendor/audio_service
@@ -22,3 +25,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/app_logo.png
+    - modelos/TEXTE FIT-app.glb

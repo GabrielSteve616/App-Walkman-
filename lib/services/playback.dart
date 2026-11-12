@@ -5,6 +5,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import '../models/local_track.dart';
+import 'playlist_loader.dart';
 
 class Playback extends ChangeNotifier {
   AudioPlayer? _player;
@@ -15,15 +16,36 @@ class Playback extends ChangeNotifier {
   String? error;
   String? tapeName;
   bool get playing => _player?.playing ?? false;
-  bool get shuffle => _player?.shuffleModeEnabled ?? false;
-  LoopMode get loop => _player?.loopMode ?? LoopMode.off;
-  double get volume => _player?.volume ?? 1;
+  bool _savedShuffle = false;
+  LoopMode _savedLoop = LoopMode.off;
+  double _savedVolume = 1;
+  bool get shuffle => _player?.shuffleModeEnabled ?? _savedShuffle;
+  LoopMode get loop => _player?.loopMode ?? _savedLoop;
+  double get volume => _player?.volume ?? _savedVolume;
+  Map<String, dynamic> get preferences =>
+      {'volume': volume, 'shuffle': shuffle, 'loop': loop.index};
+  Future<void> applyPreferences(Map<String, dynamic> settings) async {
+    _savedVolume = (settings['volume'] as num? ?? 1).toDouble().clamp(0, 1);
+    _savedShuffle = settings['shuffle'] as bool? ?? false;
+    final index =
+        (settings['loop'] as int? ?? 0).clamp(0, LoopMode.values.length - 1);
+    _savedLoop = LoopMode.values[index];
+    final p = _player;
+    if (p != null) {
+      await p.setVolume(_savedVolume);
+      await p.setShuffleModeEnabled(_savedShuffle);
+      await p.setLoopMode(_savedLoop);
+    }
+    _changed();
+  }
+
   Duration get position => _player?.position ?? Duration.zero;
   Duration get duration =>
       _player?.duration ?? current?.duration ?? Duration.zero;
   LocalTrack? get current =>
       queue.isEmpty ? null : queue[index.clamp(0, queue.length - 1)];
   bool _disposed = false;
+  bool _queueReady = false;
   ({List<LocalTrack> tracks, int start, String? name})? _pendingPlay;
   ({Duration start, Duration? end})? _nextRange;
   Duration? _rangeEnd;
@@ -31,7 +53,7 @@ class Playback extends ChangeNotifier {
     if (busy || start < Duration.zero) return;
     _rangeEnd = null;
     final target = queue.indexWhere((t) => t.uri == track.uri);
-    if (_player != null && target >= 0) {
+    if (_player != null && _queueReady && target >= 0) {
       await _action((p) async {
         await p.seek(start, index: target);
         unawaited(p.play().catchError((Object e) {
@@ -67,6 +89,9 @@ class Playback extends ChangeNotifier {
     final session = await AudioSession.instance;
     await session.configure(const AudioSessionConfiguration.music());
     final player = _player = AudioPlayer(maxSkipsOnError: 5);
+    await player.setVolume(_savedVolume);
+    await player.setShuffleModeEnabled(_savedShuffle);
+    await player.setLoopMode(_savedLoop);
     _subscriptions.add(player.playerStateStream.listen((_) => _changed()));
     _subscriptions.add(player.positionStream.listen((position) {
       if (_rangeEnd != null && position >= _rangeEnd!) {
@@ -77,7 +102,7 @@ class Playback extends ChangeNotifier {
     }));
     _subscriptions.add(player.durationStream.listen((_) => _changed()));
     _subscriptions.add(player.currentIndexStream.listen((i) {
-      if (i != null) index = i;
+      if (i != null && !busy) index = i;
       _changed();
     }));
     _subscriptions.add(player.errorStream.listen((e) {
@@ -99,11 +124,13 @@ class Playback extends ChangeNotifier {
     _nextRange = null;
     _rangeEnd = null;
     if (_player != null &&
+        _queueReady &&
         name == tapeName &&
         listEquals(tracks.map((t) => t.uri).toList(),
             queue.map((t) => t.uri).toList()) &&
         range == null) {
       index = start.clamp(0, queue.length - 1);
+      error = null;
       await _action((p) async {
         await p.seek(Duration.zero, index: index);
         unawaited(p.play().catchError((Object e) {
@@ -114,6 +141,7 @@ class Playback extends ChangeNotifier {
       return;
     }
     busy = true;
+    _queueReady = false;
     error = null;
     queue = List.of(tracks);
     index = start.clamp(0, tracks.length - 1);
@@ -122,27 +150,37 @@ class Playback extends ChangeNotifier {
     try {
       final player = await _ensure();
       await player.pause();
-      await player.setAudioSources([
-        for (final t in queue)
-          AudioSource.uri(t.uri,
-              tag: MediaItem(
-                  id: t.uri.toString(),
-                  title: t.title,
-                  artist: t.artist,
-                  artUri: Uri(
-                      scheme: 'content',
-                      host: 'br.com.walkman.walkman.art',
-                      path: '/cover',
-                      queryParameters: {'source': t.uri.toString()}),
-                  album: name ?? t.album,
-                  duration: t.duration == Duration.zero ? null : t.duration)),
-      ], initialIndex: index, initialPosition: range?.start ?? Duration.zero);
+      final selectedIndex = index;
+      await loadPlaylist(
+          player,
+          [
+            for (final t in queue)
+              AudioSource.uri(t.uri,
+                  tag: MediaItem(
+                      id: t.uri.toString(),
+                      title: t.title,
+                      artist: t.artist,
+                      artUri: Uri(
+                          scheme: 'content',
+                          host: 'br.com.walkman.walkman.art',
+                          path: '/cover',
+                          queryParameters: {'source': t.uri.toString()}),
+                      album: name ?? t.album,
+                      duration:
+                          t.duration == Duration.zero ? null : t.duration)),
+          ],
+          initialIndex: selectedIndex,
+          initialPosition: range?.start ?? Duration.zero);
+      index = selectedIndex;
+      _queueReady = true;
+      error = null;
       _rangeEnd = range?.end;
       unawaited(player.play().catchError((Object e) {
         error = 'Não foi possível reproduzir este arquivo.';
         _changed();
       }));
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('Walkmen: erro ao preparar fila: $e\n$stack');
       error =
           'Não foi possível abrir a música. Confira o arquivo e as permissões da pasta.';
     } finally {
@@ -215,19 +253,25 @@ class Playback extends ChangeNotifier {
   }
 
   Future<void> setVolume(double value) async {
+    _savedVolume = value.clamp(0, 1);
     await _action((p) => p.setVolume(value));
+    _changed();
   }
 
   Future<void> toggleShuffle() async {
-    await _action((p) => p.setShuffleModeEnabled(!shuffle));
+    _savedShuffle = !shuffle;
+    await _action((p) => p.setShuffleModeEnabled(_savedShuffle));
+    _changed();
   }
 
   Future<void> toggleLoop() async {
-    await _action((p) => p.setLoopMode(switch (loop) {
-          LoopMode.off => LoopMode.all,
-          LoopMode.all => LoopMode.one,
-          LoopMode.one => LoopMode.off
-        }));
+    _savedLoop = switch (loop) {
+      LoopMode.off => LoopMode.all,
+      LoopMode.all => LoopMode.one,
+      LoopMode.one => LoopMode.off
+    };
+    await _action((p) => p.setLoopMode(_savedLoop));
+    _changed();
   }
 
   @override

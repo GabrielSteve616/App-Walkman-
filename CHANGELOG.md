@@ -6,6 +6,57 @@ Não existem snapshots completos recuperados dessas versões, portanto elas
 não recebem tags nem commits retroativos. Datas dos commits representam a
 entrada real no controle de versão.
 
+## 0.12.1+26 — alterações locais
+
+- Permite escolher pasta e nome do backup pelo seletor Android, preservando a exportação direta em Downloads.
+- Trata cancelamento, falhas e conflitos sem apagar backups anteriores.
+- Atualiza o ícone adaptável e o logotipo do app com a nova imagem da fita.
+
+## 0.12.0+25 — alterações locais
+
+- Migra a coleção do JSON interno para armazenamento SQLite com transações, preservando os arquivos anteriores.
+- Exporta e importa backup JSON em Downloads, incluindo imagens incorporadas, figurinhas, fitas, favoritas, trechos e preferências.
+- Confirma a substituição, valida o arquivo e preserva a coleção anterior se houver falha na preparação ou gravação.
+- A permissão da pasta de músicas é verificada novamente; arquivos de áudio não são copiados para o backup.
+
+## 0.11.4+24 — alterações locais
+
+- Renderização 3D em isolate persistente, com cache limitado de texturas e descarte seguro ao fechar.
+- Menos trabalho por pixel, faces mais próximas primeiro e omissão da fita encoberta pela case fechada.
+- Resolução adaptável durante gestos e refinamento ao finalizar.
+- Testes de composição, cache, transparência, encerramento e rotação sem vazamento da fita.
+
+## 0.11.3+23 — alterações locais
+
+- Remove escurecimento das fotos de capa e clareia o fundo da capa padrão.
+- Ajusta contraste das letras, preservando cores personalizadas.
+
+## 0.11.2+22 — alterações locais
+
+- Substitui a ordenação média de faces por buffer de profundidade por pixel no 3D.
+- Corrige interpolação de textura em perspectiva e elimina vazamento da fita através da case fechada.
+- Torna as paredes da case opacas e descarta quadros atrasados durante gestos.
+- Acrescenta testes de faces cruzadas, transparência, perspectiva e rotação da caixa fechada.
+
+## 0.11.1+21 — alterações locais
+
+- Restaura case por código e remove a dependência do GLB da case excluído pelo usuário.
+- Preserva a fita GLB e sua personalização, inclusive no interior da case.
+
+## 0.11.0+20 — alterações locais
+
+- Integra os GLBs de fita e case fornecidos pelo usuário, sem dependência de visualizador web.
+- Normaliza o encaixe e a orientação, preserva a tampa articulada e aplica as personalizações às faces e laterais.
+- Sincroniza a silhueta 2D com a geometria dos modelos; mantém recorte das figurinhas.
+- Pré-carrega as malhas e subdivide faces grandes para corrigir sobreposição de polígonos.
+
+## 0.10.1+19 — alterações locais
+
+- Recorte de figurinhas pela silhueta física da fita em 2D.
+- Pesquisa global com reprodução pelo resultado.
+- Preparação de fila em lotes e janela de 50 itens na sessão de mídia Android; catálogo completo preservado.
+- Serialização de atualizações da fila nativa e nova tentativa após falha ao abrir áudio.
+
 ## 0.10.0+18 — alterações locais
 
 - Materiais sólido e cristalino para a fita, aplicados ao 2D e ao 3D.

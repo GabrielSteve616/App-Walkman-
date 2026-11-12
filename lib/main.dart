@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'services/app_state.dart';
+import 'widgets/glb_model.dart';
 
 import 'screens/home_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await WalkmenModels.load();
   await JustAudioBackground.init(
     androidNotificationChannelId: 'br.com.walkman.playback',
     androidNotificationChannelName: 'Reprodução Walkmen',

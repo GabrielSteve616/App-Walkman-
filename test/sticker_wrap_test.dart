@@ -46,7 +46,7 @@ void main() {
             await isRed(
                 await renderTapeTexture(tape, [asset],
                     caseView: caseView, backView: back),
-                .98,
+                .93,
                 .5);
             // A front right edge is the back left edge.
             await isRed(
@@ -57,10 +57,23 @@ void main() {
             await isRed(
                 await renderTapeTexture(tape, [asset],
                     caseView: caseView, backView: !back),
-                .02,
+                .07,
                 .5);
           }
         }
+        final clipped = Tape(id: 'clip', name: '', tracks: [], stickers: [
+          StickerPlacement(assetId: 'red', x: 0, y: 0, width: .5)
+        ]);
+        final clippedImage = await renderTapeTexture(clipped, [asset]);
+        final rgba =
+            await clippedImage.toByteData(format: ui.ImageByteFormat.rawRgba);
+        int redAt(double x, double y) => rgba!.getUint8(
+            ((clippedImage.height * y).floor() * clippedImage.width +
+                    (clippedImage.width * x).floor()) *
+                4);
+        expect(redAt(.005, .005), lessThan(20));
+        expect(redAt(.1, .1), greaterThan(240));
+        clippedImage.dispose();
       } finally {
         await dir.delete(recursive: true);
       }

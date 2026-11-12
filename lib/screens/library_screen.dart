@@ -258,8 +258,11 @@ class LibraryScreenState extends State<LibraryScreen> {
                     ]));
                   }
                   final all = snapshot.data ?? [];
-                  var tracks = _folder == null ? all : _inFolder(all, _folder!);
-                  if (_view == LibraryView.favorites) {
+                  final searching = _query.isNotEmpty;
+                  var tracks = searching || _folder == null
+                      ? all
+                      : _inFolder(all, _folder!);
+                  if (_view == LibraryView.favorites && !searching) {
                     final saved = <String, LocalTrack>{
                       ...?widget.app?.favoriteTracks
                     };
@@ -350,7 +353,7 @@ class LibraryScreenState extends State<LibraryScreen> {
                             ? 'Toque no coração de uma música para guardá-la aqui.'
                             : 'Adicione arquivos de áudio ou tente outra pesquisa.');
                   return Column(children: [
-                    if (_folder != null && widget.app != null)
+                    if (_folder != null && widget.app != null && !searching)
                       Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Row(children: [

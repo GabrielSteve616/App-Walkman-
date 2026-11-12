@@ -43,6 +43,7 @@ class MainActivity : AudioServiceActivity() {
         if(companionReady)companionChannel?.invokeMethod("launch",payload)else pendingAction=payload
     }
     private val worker = Executors.newFixedThreadPool(2)
+    private val backupChannel by lazy { BackupChannel(this, worker) }
     private var permissionResult: MethodChannel.Result? = null
     private var folderResult: MethodChannel.Result? = null
     private val preferences by lazy { getSharedPreferences("music_library", MODE_PRIVATE) }
@@ -52,6 +53,7 @@ class MainActivity : AudioServiceActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        backupChannel.attach(flutterEngine)
         companionChannel=MethodChannel(flutterEngine.dartExecutor.binaryMessenger,"walkmen/companion").apply {
             setMethodCallHandler { call,result ->
                 val prefs=getSharedPreferences("companion",MODE_PRIVATE)
@@ -208,6 +210,7 @@ class MainActivity : AudioServiceActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>,
         grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        backupChannel.permission(requestCode, grantResults)
         if(requestCode==203){notificationResult?.success(grantResults.firstOrNull()==PackageManager.PERMISSION_GRANTED);notificationResult=null}
         if (requestCode == 201) {
             val result = permissionResult ?: return
@@ -220,6 +223,7 @@ class MainActivity : AudioServiceActivity() {
     @Deprecated("Activity result API required by FlutterActivity integration")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        backupChannel.activityResult(requestCode, resultCode, data)
         if (requestCode == 202) {
             val result = folderResult ?: return
             folderResult = null
